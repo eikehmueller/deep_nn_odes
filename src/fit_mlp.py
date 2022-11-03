@@ -116,7 +116,7 @@ if model_label == "MLP":
     params = init_mlp_parameters(layer_widths)
     model = mlp_model
 else:
-    raise Exception(f"unknown dataset: '{dataset}'")
+    raise Exception(f"unknown dataset: '{dataset_label}'")
 
 # Fit the model
 params = fit(model, params, optimizer, data_generator, nepoch=nepoch)
