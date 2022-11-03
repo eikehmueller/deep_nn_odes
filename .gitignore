@@ -1,0 +1,4 @@
+.ipynb_checkpoints
+fit.pdf
+*.egg-info
+__pycache__
