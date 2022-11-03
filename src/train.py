@@ -100,7 +100,7 @@ learning_rate = 1.0e-3
 dataset_label = "swissroll"
 
 # choose model
-model_label = "MLP"
+model_label = "Hamiltonian"
 
 if dataset_label == "circular":
     radius = 0.25
