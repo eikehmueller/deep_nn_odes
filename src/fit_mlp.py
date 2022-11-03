@@ -1,3 +1,4 @@
+from functools import partial
 import numpy as np
 from jax import numpy as jnp
 import jax
@@ -9,7 +10,12 @@ from deep_nn_odes.data_generator import (
     DataGeneratorMoons,
     DataGeneratorSwissRoll,
 )
-from deep_nn_odes.model import init_mlp_parameters, mlp_model
+from deep_nn_odes.model import (
+    init_mlp_parameters,
+    mlp_model,
+    init_hamiltonian_parameters,
+    hamiltonian_model,
+)
 
 
 def fit(model, params, optimizer, data_generator, nepoch=10):
@@ -48,7 +54,7 @@ def fit(model, params, optimizer, data_generator, nepoch=10):
     return params
 
 
-def visualise(data_generator, model, params, nx=32, ny=32, filename="fit.pdf"):
+def visualise(data_generator, model, params, nx=64, ny=64, filename="fit.pdf"):
     """Visualise the data and save to file
 
     Create contour plot of binary classifier and overlay scatter plot of test data
@@ -80,18 +86,18 @@ def visualise(data_generator, model, params, nx=32, ny=32, filename="fit.pdf"):
 
 
 # Number of samples used for training
-n_train = 1024
+n_train = 16384
 # Number of samples used for testing
 n_test = 1024
 # number of epochs
 nepoch = 1000
 # batch size
-batchsize = 16
+batchsize = 128
 # Hyperparameters
 learning_rate = 1.0e-3
 
 # choose dataset
-dataset_label = "moons"
+dataset_label = "swissroll"
 
 # choose model
 model_label = "MLP"
@@ -103,7 +109,7 @@ elif dataset_label == "moons":
     sigma = 0.2
     data_generator = DataGeneratorMoons(n_train, n_test, batchsize, noise=sigma)
 elif dataset_label == "swissroll":
-    sigma = 0.02
+    sigma = 0.025
     data_generator = DataGeneratorSwissRoll(n_train, n_test, batchsize, noise=sigma)
 else:
     raise Exception(f"unknown dataset: '{dataset_label}'")
@@ -115,6 +121,11 @@ if model_label == "MLP":
     layer_widths = (2, 16, 16, 2)
     params = init_mlp_parameters(layer_widths)
     model = mlp_model
+elif model_label == "Hamiltonian":
+    n_steps = 16
+    latent_dim = 8
+    params = init_hamiltonian_parameters(2, latent_dim, 2)
+    model = partial(hamiltonian_model, n_steps=n_steps)
 else:
     raise Exception(f"unknown dataset: '{dataset_label}'")
 
