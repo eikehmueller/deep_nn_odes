@@ -4,7 +4,7 @@ from jax import numpy as jnp
 import jax
 import optax
 from matplotlib import pyplot as plt
-import matplotlib as mpl
+from matplotlib import cm
 from deep_nn_odes.data_generator import (
     DataGeneratorCircular,
     DataGeneratorMoons,
@@ -71,13 +71,15 @@ def visualise(data_generator, model, params, nx=64, ny=64, filename="fit.pdf"):
     XY = np.stack(np.meshgrid(x, y), axis=-1)
 
     Z = jax.nn.softmax(model(params, XY))[..., 0]
-    plt.contourf(XY[..., 0], XY[..., 1], Z, cmap=mpl.colormaps["Greys"], alpha=0.7)
+    cmap = cm.get_cmap("Greys")
+    plt.contourf(XY[..., 0], XY[..., 1], Z, cmap=cmap, alpha=0.7)
     plt.colorbar()
+    cmap = cm.get_cmap("bwr")
     plt.scatter(
         X_test[:, 0],
         X_test[:, 1],
         c=y_test[:, 0],
-        cmap=mpl.colormaps["bwr"],
+        cmap=cmap,
         vmin=0.0,
         vmax=1.0,
         s=4,
