@@ -1,5 +1,6 @@
 import numpy as np
 import jax
+from jax import numpy as jnp
 
 
 def init_mlp_parameters(layer_widths):
@@ -49,14 +50,10 @@ def init_hamiltonian_parameters(dim, n_class, n_steps=8):
     :arg n_class: number of classes n_c
     """
     params = dict(
-        K_x=[
-            np.random.normal(size=(dim, dim)) * np.sqrt(2 / dim) for _ in range(n_steps)
-        ],
-        b_x=[np.ones(shape=(1,)) for _ in range(n_steps)],
-        K_p=[
-            np.random.normal(size=(dim, dim)) * np.sqrt(2 / dim) for _ in range(n_steps)
-        ],
-        b_p=[np.ones(shape=(1,)) for _ in range(n_steps)],
+        K_x=np.random.normal(size=(n_steps, dim, dim)) * np.sqrt(2 / dim),
+        b_x=np.ones(shape=(n_steps,)),
+        K_p=np.random.normal(size=(n_steps, dim, dim)) * np.sqrt(2 / dim),
+        b_p=np.ones(shape=(n_steps,)),
         classification=dict(
             weights=np.random.normal(size=(dim, n_class)) * np.sqrt(2 / dim),
             biases=np.ones(shape=(n_class,)),
@@ -95,10 +92,38 @@ def hamiltonian_model(params, x, n_steps=8):
     K_x, b_x = params["K_x"], params["b_x"]
     K_p, b_p = params["K_p"], params["b_p"]
     activation = jax.nn.sigmoid
-    p = 0.5 * h * activation(x @ K_p[0] + b_p[0]) @ K_p[0].T
+    p = 0.5 * h * activation(x @ K_p[0, :, :] + b_p[0]) @ K_p[0, :, :].T
     for j in range(n_steps):
-        x -= h * activation(p @ K_x[j] + b_x[j]) @ K_x[j].T
+        x -= h * activation(p @ K_x[j, :, :] + b_x[j]) @ K_x[j, :, :].T
         if j < n_steps - 1:
-            p += h * activation(x @ K_p[j + 1] + b_p[j + 1]) @ K_p[j + 1].T
+            p += h * activation(x @ K_p[j + 1, :, :] + b_p[j + 1]) @ K_p[j + 1, :, :].T
     K, b = params["classification"]["weights"], params["classification"]["biases"]
     return x @ K + b
+
+
+def hamiltonian_regulariser(params, alpha=1.0e-3):
+    """Regulariser for Hamiltonian formulation
+
+    Returns the sum R(K_x) + R(K_p) + r(b_x) + r(b) where
+
+        R(K) = 1/(2*h) sum_{j=1}^{n-1} ||K_j-K_{j-1}||_F^2
+
+    with the Frobenius norm
+
+        ||A||_F = ( sum_{a,b=0}^{d-1} K_{a,b}^2 )^{1/2}
+
+    and
+
+        r(b) = alpha/(2*h) sum_{j=1}^{n-1} |b_j-b_{j-1}|^2
+
+    h = 1/n_steps is the stepsize of the Verlet integrator.
+
+    :arg params: model parameters, as created by init_hamiltonian_parameters()
+    :arg alpha: scaling factor
+    """
+    n_steps = float(params["K_x"].shape[0])
+
+    R = lambda A: 0.5 / n_steps * jnp.sum((A[1:, ...] - A[:-1, ...]) ** 2)
+    return alpha * (
+        R(params["K_x"]) + R(params["K_p"]) + R(params["b_x"]) + R(params["b_p"])
+    )
