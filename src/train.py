@@ -124,9 +124,8 @@ if model_label == "MLP":
     params = init_mlp_parameters(layer_widths)
     model = mlp_model
 elif model_label == "Hamiltonian":
-    n_steps = 16
-    latent_dim = 8
-    params = init_hamiltonian_parameters(2, latent_dim, 2)
+    n_steps = 8
+    params = init_hamiltonian_parameters(2, 2, n_steps=n_steps)
     model = partial(hamiltonian_model, n_steps=n_steps)
 else:
     raise Exception(f"unknown dataset: '{dataset_label}'")
