@@ -83,9 +83,9 @@ def hamiltonian_model(params, x, n_steps=8):
     x = x @ first["weights"] + first["biases"]
     K_x, b_x = layer_x["weights"], layer_x["biases"]
     K_p, b_p = layer_p["weights"], layer_p["biases"]
-
-    p = 0.5 * h * jax.nn.sigmoid(x @ K_p + b_p) @ K_p.T
+    activation = jax.nn.sigmoid
+    p = 0.5 * h * activation(x @ K_p + b_p) @ K_p.T
     for _ in range(n_steps):
-        x -= h * jax.nn.sigmoid(p @ K_x + b_x) @ K_x.T
-        p += h * jax.nn.sigmoid(x @ K_p + b_p) @ K_p.T
+        x -= h * activation(p @ K_x + b_x) @ K_x.T
+        p += h * activation(x @ K_p + b_p) @ K_p.T
     return x @ last["weights"] + last["biases"]
