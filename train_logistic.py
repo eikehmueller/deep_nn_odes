@@ -14,7 +14,7 @@ The code requires JAX (https://github.com/google/jax) and optax (https://github.
 import numpy as np
 import jax
 import optax
-import matplotlib as mpl
+from matplotlib import cm
 from matplotlib import pyplot as plt
 
 # Seed for random number generator (to make results reproducible)
@@ -121,7 +121,7 @@ for epoch in range(nepoch):
 # ==== Plotting ====
 # Create scatter plot of the labelled data points and save to the file "logistic.pdf".
 plt.clf()
-plt.scatter(X[:, 0], X[:, 1], c=y[:, 0], cmap=mpl.colormaps["bwr"])
+plt.scatter(X[:, 0], X[:, 1], c=y[:, 0], cmap=cm.get_cmap("bwr"))
 
 # Create a contour plot of the model function
 nx = ny = 100
@@ -130,6 +130,6 @@ y = np.linspace(np.min(X[:, 1]) - 0.1, np.max(X[:, 1]) + 0.1, ny)
 XY = np.stack(np.meshgrid(x, y), axis=-1)
 
 Z = jax.nn.softmax(model(params, XY))[..., 0]
-plt.contourf(XY[..., 0], XY[..., 1], Z, cmap=mpl.colormaps["Greys"], alpha=0.7)
+plt.contourf(XY[..., 0], XY[..., 1], Z, cmap=cm.get_cmap("Greys"), alpha=0.7)
 plt.colorbar()
 plt.savefig("logistic.pdf", bbox_inches="tight")
