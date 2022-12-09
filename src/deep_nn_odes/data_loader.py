@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 
 
-class DataLoader:
+class ImageDatasetLoader:
     """Data loader base class"""
 
     def __init__(
@@ -34,7 +34,15 @@ class DataLoader:
         self.n_categories = n_categories
 
 
-class MNISTDataLoader(DataLoader):
+class MNISTDatasetLoader(ImageDatasetLoader):
+    """Data loader for MNIST dataset.
+
+    See https://deepai.org/dataset/mnist and http://yann.lecun.com/exdb/mnist/.
+    The files can be obtained with wget https://data.deepai.org/mnist.zip.
+    Downloaded the files into the data directory and unzip them with
+    gunzip FILENAME.gz.
+    """
+
     def __init__(self, datadir="../data/mnist/"):
         super().__init__(
             n_x=28, n_y=28, n_channels=1, n_categories=10, n_train=60000, n_test=10000
@@ -63,7 +71,7 @@ class MNISTDataLoader(DataLoader):
 
     def _read_image_file(self, filename):
         """Read images from a single file, using the format described in
-        http://yann.lecun.com/exdb/mnist/
+        http://yann.lecun.com/exdb/mnist/ and https://deepai.org/dataset/mnist
 
         Returns an array of shape (n_images,n_x,n_y,1) and type float32
 
@@ -109,7 +117,13 @@ class MNISTDataLoader(DataLoader):
             return labels
 
 
-class CIFAR10DataLoader(DataLoader):
+class CIFAR10DatasetLoader(ImageDatasetLoader):
+    """Loader for the CIFAR10 dataset.
+
+    The dataset is described at https://www.cs.toronto.edu/~kriz/cifar.html.
+    Download the CIFAR-10 python version and unpack it into the correct directory.
+    """
+
     def __init__(self, datadir="../data/cifar-10-batches-py/"):
         super().__init__(
             n_x=32, n_y=32, n_channels=3, n_categories=10, n_train=50000, n_test=10000
