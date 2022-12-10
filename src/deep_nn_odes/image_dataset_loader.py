@@ -16,15 +16,21 @@ class ImageDatasetLoader:
         n_categories=None,
         n_train=None,
         n_test=None,
+        channels_first=True,
+        normalise_images=True,
     ):
         """Initialise new instance
 
-        :arg n_x: image size in horizontal direction
-        :arg n_y: image size in vertical direction
-        :arg n_channels: number of channels
+        :arg n_x: image width W
+        :arg n_y: image height H
+        :arg n_channels: number of channels C
         :arg n_categories: number of categories
         :arg n_train: number of training images
         :arg n_test: number of test images
+        :arg channels_first: if this is true, then individual images will be stored as
+               CHW, otherwise as HWC.
+        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
+            of training images?
         """
         self.n_x = n_x
         self.n_y = n_y
@@ -32,6 +38,54 @@ class ImageDatasetLoader:
         self.n_train = n_train
         self.n_test = n_test
         self.n_categories = n_categories
+        self.channels_first = channels_first
+        self.normalise_images = normalise_images
+        # random number generator
+        self.rng = np.random.default_rng(seed=2149187)
+
+    def normalise_and_transpose(self):
+        """Normalise images using the mean and standard deviation of the
+        training dataset and transpose them to HWC, if necessary (recall that by default images
+        are stored as CHW)."""
+        if self.normalise_images:
+            # subtract mean and divide by standard deviation of
+            # training images
+            avg = np.mean(self.train_images, axis=(0, 2, 3)).reshape(
+                (1, self.n_channels, 1, 1)
+            )
+            std = np.std(self.train_images, axis=(0, 2, 3)).reshape(
+                (1, self.n_channels, 1, 1)
+            )
+            self.train_images = (self.train_images - avg) / std
+            self.test_images = (self.test_images - avg) / std
+        if not self.channels_first:
+            # transpose to HWC, if necessary
+            self.train_images = self.train_images.transpose([0, 2, 3, 1])
+            self.test_images = self.test_images.transpose([0, 2, 3, 1])
+
+    def get_shuffled_batched_train_data(self, batch_size, random_shuffle=True):
+        """Return batched data for training.
+
+        Returns two lists, containing the batched images and the batched labels.
+
+        Each element of the lists consists of a minibatch of size batch_size.
+        If n_train is not a multiply of batch_size, any remaining elements will be dropped.
+
+        :arg batch_size: size of minibatches
+        :arg random_shuffle: randomly shuffle the training dataset before batching?
+        """
+        idx_array = np.arange(0, self.n_train)
+        if random_shuffle:
+            self.rng.shuffle(idx_array)
+        n_batches = self.n_train // batch_size
+        assert n_batches > 0
+        batched_images = np.split(
+            self.train_images[idx_array[: n_batches * batch_size]], n_batches
+        )
+        batched_labels = np.split(
+            self.train_labels[idx_array[: n_batches * batch_size]], n_batches
+        )
+        return batched_images, batched_labels
 
 
 class MNISTDatasetLoader(ImageDatasetLoader):
@@ -43,9 +97,25 @@ class MNISTDatasetLoader(ImageDatasetLoader):
     gunzip FILENAME.gz.
     """
 
-    def __init__(self, datadir="../data/mnist/"):
+    def __init__(
+        self, datadir="../data/mnist/", channels_first=True, normalise_images=True
+    ):
+        """Initialise new instance
+
+        :arg datadir: directory containing the datset files
+        :arg channels_first: store the images is CHW format?
+        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
+            of training images?
+        """
         super().__init__(
-            n_x=28, n_y=28, n_channels=1, n_categories=10, n_train=60000, n_test=10000
+            n_x=28,
+            n_y=28,
+            n_channels=1,
+            n_categories=10,
+            n_train=60000,
+            n_test=10000,
+            channels_first=channels_first,
+            normalise_images=normalise_images,
         )
         self.datadir = datadir
         # Read training images and labels
@@ -68,12 +138,15 @@ class MNISTDatasetLoader(ImageDatasetLoader):
         # Check that the number of read images and labels is as expected
         assert self.n_test == self.test_images.shape[0]
         assert self.n_test == self.test_labels.shape[0]
+        # set categories
+        self.categories = [str(j) for j in range(10)]
+        self.normalise_and_transpose()
 
     def _read_image_file(self, filename):
         """Read images from a single file, using the format described in
         http://yann.lecun.com/exdb/mnist/ and https://deepai.org/dataset/mnist
 
-        Returns an array of shape (n_images,n_x,n_y,1) and type float32
+        Returns an array of shape (n_images,1,n_x,n_y) and type float32
 
         :arg filename: name of file to read
         """
@@ -89,7 +162,7 @@ class MNISTDatasetLoader(ImageDatasetLoader):
             assert n_y == self.n_y
             data = f.read(n_x * n_y * n_images)
             images = np.reshape(
-                np.frombuffer(data, dtype=np.uint8) / 256, [n_images, n_x, n_y, 1]
+                np.frombuffer(data, dtype=np.uint8) / 256, [n_images, 1, n_x, n_y]
             ).astype(np.float32)
             return images
 
@@ -124,13 +197,32 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
     Download the CIFAR-10 python version and unpack it into the correct directory.
     """
 
-    def __init__(self, datadir="../data/cifar-10-batches-py/"):
+    def __init__(
+        self,
+        datadir="../data/cifar-10-batches-py/",
+        channels_first=True,
+        normalise_images=True,
+    ):
+        """Initialise new instance
+
+        :arg datadir: directory containing the datset files
+        :arg channels_first: store the images is CHW format?
+        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
+            of training images?
+        """
         super().__init__(
-            n_x=32, n_y=32, n_channels=3, n_categories=10, n_train=50000, n_test=10000
+            n_x=32,
+            n_y=32,
+            n_channels=3,
+            n_categories=10,
+            n_train=50000,
+            n_test=10000,
+            channels_first=channels_first,
+            normalise_images=normalise_images,
         )
         self.datadir = datadir
         # Load training images
-        self.train_images = np.empty([50000, 32, 32, 3])
+        self.train_images = np.empty([50000, 3, 32, 32])
         self.train_labels = np.empty([50000])
         for idx in range(5):
             batch_images, batch_labels = self._unpickle(
@@ -150,6 +242,8 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
             str(category, encoding="utf8") for category in meta_data[b"label_names"]
         ]
         assert len(self.categories) == self.n_categories
+        # Normalise and transpose images, if necessary
+        self.normalise_and_transpose()
 
     def _unpickle(self, filename):
         """Unpickle CIFAR10 datafile, as described at https://www.cs.toronto.edu/~kriz/cifar.html
@@ -158,8 +252,6 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
         """
         with open(filename, "rb") as f:
             data = pickle.load(f, encoding="bytes")
-        images = np.transpose(
-            data[b"data"].reshape(10000, 3, 32, 32) / 256, [0, 2, 3, 1]
-        ).astype(np.float32)
+        images = data[b"data"].reshape(10000, 3, 32, 32).astype(np.float32) / 256
         labels = np.asarray(data[b"labels"], dtype=np.uint8)
         return images, labels
