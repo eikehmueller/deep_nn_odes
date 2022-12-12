@@ -3,6 +3,7 @@
 import os
 import pickle
 import numpy as np
+import cv2
 
 
 class ImageDatasetLoader:
@@ -14,9 +15,10 @@ class ImageDatasetLoader:
         n_y=None,
         n_channels=1,
         n_categories=None,
-        n_train=None,
+        n_train_valid=None,
         n_test=None,
-        channels_first=True,
+        validation_split=0.2,
+        channels_first=False,
         normalise_images=True,
     ):
         """Initialise new instance
@@ -25,23 +27,29 @@ class ImageDatasetLoader:
         :arg n_y: image height H
         :arg n_channels: number of channels C
         :arg n_categories: number of categories
-        :arg n_train: number of training images
+        :arg n_train_valid: number of training + validation images
         :arg n_test: number of test images
+        :arg validation_split: fraction of training images used for validation
         :arg channels_first: if this is true, then individual images will be stored as
                CHW, otherwise as HWC.
-        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
-            of training images?
+        :arg normalise_images: normalise images by subtracting mean and dividing
+            by standard deviation of training images?
         """
         self.n_x = n_x
         self.n_y = n_y
         self.n_channels = n_channels
-        self.n_train = n_train
+        self.n_train_valid = n_train_valid
         self.n_test = n_test
         self.n_categories = n_categories
+        self.validation_split = validation_split
         self.channels_first = channels_first
         self.normalise_images = normalise_images
         # random number generator
         self.rng = np.random.default_rng(seed=2149187)
+        self.train_valid_images = np.empty((1, 1, 1, 1))
+        self.train_valid_labels = np.empty((1,))
+        self.test_images = np.empty((1, 1, 1, 1))
+        self.test_labels = np.empty((1,))
 
     def normalise_and_transpose(self):
         """Normalise images using the mean and standard deviation of the
@@ -50,17 +58,17 @@ class ImageDatasetLoader:
         if self.normalise_images:
             # subtract mean and divide by standard deviation of
             # training images
-            avg = np.mean(self.train_images, axis=(0, 2, 3)).reshape(
+            avg = np.mean(self.train_valid_images, axis=(0, 2, 3)).reshape(
                 (1, self.n_channels, 1, 1)
             )
-            std = np.std(self.train_images, axis=(0, 2, 3)).reshape(
+            std = np.std(self.train_valid_images, axis=(0, 2, 3)).reshape(
                 (1, self.n_channels, 1, 1)
             )
-            self.train_images = (self.train_images - avg) / std
+            self.train_valid_images = (self.train_valid_images - avg) / std
             self.test_images = (self.test_images - avg) / std
         if not self.channels_first:
             # transpose to HWC, if necessary
-            self.train_images = self.train_images.transpose([0, 2, 3, 1])
+            self.train_valid_images = self.train_valid_images.transpose([0, 2, 3, 1])
             self.test_images = self.test_images.transpose([0, 2, 3, 1])
 
     def get_shuffled_batched_train_data(self, batch_size, random_shuffle=True):
@@ -74,18 +82,28 @@ class ImageDatasetLoader:
         :arg batch_size: size of minibatches
         :arg random_shuffle: randomly shuffle the training dataset before batching?
         """
-        idx_array = np.arange(0, self.n_train)
+        n_train = int((1 - self.validation_split) * self.n_train_valid)
+        idx_array = np.arange(0, n_train)
         if random_shuffle:
             self.rng.shuffle(idx_array)
-        n_batches = self.n_train // batch_size
+        n_batches = n_train // batch_size
         assert n_batches > 0
         batched_images = np.split(
-            self.train_images[idx_array[: n_batches * batch_size]], n_batches
+            self.train_valid_images[idx_array[: n_batches * batch_size]], n_batches
         )
         batched_labels = np.split(
-            self.train_labels[idx_array[: n_batches * batch_size]], n_batches
-        )
+            self.train_valid_labels[idx_array[: n_batches * batch_size]],
+            n_batches,
+        )  # pylint: disable=unsubscriptable-object
         return batched_images, batched_labels
+
+    def get_validation_data(self):
+        """Return validation data
+
+        This includes all images that are not used for training. Returns two lists,
+        containing the batched images and the batched labels."""
+        n_train = int((1 - self.validation_split) * self.n_train_valid)
+        return self.train_valid_images[n_train:], self.train_valid_labels[n_train:]
 
 
 class MNISTDatasetLoader(ImageDatasetLoader):
@@ -98,36 +116,45 @@ class MNISTDatasetLoader(ImageDatasetLoader):
     """
 
     def __init__(
-        self, datadir="../data/mnist/", channels_first=True, normalise_images=True
+        self,
+        datadir="../data/mnist/",
+        validation_split=0.2,
+        channels_first=False,
+        resize=True,
+        normalise_images=True,
     ):
         """Initialise new instance
 
         :arg datadir: directory containing the datset files
+        :arg validation_split: fraction of training images used for validation
         :arg channels_first: store the images is CHW format?
-        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
-            of training images?
+        :arg resize: resize images to 32x32?
+        :arg normalise_images: normalise images by subtracting mean and dividing
+            by standard deviation of training images?
         """
         super().__init__(
-            n_x=28,
-            n_y=28,
+            n_x=32 if resize else 28,
+            n_y=32 if resize else 28,
             n_channels=1,
             n_categories=10,
-            n_train=60000,
+            n_train_valid=60000,
             n_test=10000,
+            validation_split=validation_split,
             channels_first=channels_first,
             normalise_images=normalise_images,
         )
+        self.resize = resize
         self.datadir = datadir
         # Read training images and labels
-        self.train_images = self._read_image_file(
+        self.train_valid_images = self._read_image_file(
             os.path.join(self.datadir, "train-images-idx3-ubyte")
         )
-        self.train_labels = self._read_label_file(
+        self.train_valid_labels = self._read_label_file(
             os.path.join(self.datadir, "train-labels-idx1-ubyte")
         )
         # Check that the number of read images and labels is as expected
-        assert self.n_train == self.train_images.shape[0]
-        assert self.n_train == self.train_labels.shape[0]
+        assert self.n_train_valid == self.train_valid_images.shape[0]
+        assert self.n_train_valid == self.train_valid_labels.shape[0]
         # Read test images and labels
         self.test_images = self._read_image_file(
             os.path.join(self.datadir, "t10k-images-idx3-ubyte")
@@ -158,12 +185,23 @@ class MNISTDatasetLoader(ImageDatasetLoader):
             n_images = int.from_bytes(header[4:8], byteorder="big")
             n_x = int.from_bytes(header[8:12], byteorder="big")
             n_y = int.from_bytes(header[12:16], byteorder="big")
-            assert n_x == self.n_x
-            assert n_y == self.n_y
+            assert n_x == 28
+            assert n_y == 28
             data = f.read(n_x * n_y * n_images)
-            images = np.reshape(
-                np.frombuffer(data, dtype=np.uint8) / 256, [n_images, 1, n_x, n_y]
-            ).astype(np.float32)
+            orig_images = np.reshape(
+                np.frombuffer(data, dtype=np.uint8).astype(np.float32) / 256,
+                (n_images, n_x, n_y),
+            )
+            if self.resize:
+                images = np.empty((n_images, self.n_x, self.n_x))
+                for j in range(n_images):
+                    images[j, :, :] = cv2.resize(  # pylint: disable=no-member
+                        orig_images[j, :, :], (self.n_x, self.n_y)
+                    )
+            else:
+                images = orig_images
+            images = np.reshape(images, [n_images, 1, self.n_x, self.n_y])
+
             return images
 
     def _read_label_file(self, filename):
@@ -200,36 +238,41 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
     def __init__(
         self,
         datadir="../data/cifar-10-batches-py/",
-        channels_first=True,
+        validation_split=0.2,
+        channels_first=False,
         normalise_images=True,
     ):
         """Initialise new instance
 
         :arg datadir: directory containing the datset files
+        :arg validation_split: fraction of training images used for validation
         :arg channels_first: store the images is CHW format?
-        :arg normalise_images: normalise images by subtracting mean and dividing by standard deviation
-            of training images?
+        :arg normalise_images: normalise images by subtracting mean and dividing
+            by standard deviation of training images?
         """
         super().__init__(
             n_x=32,
             n_y=32,
             n_channels=3,
             n_categories=10,
-            n_train=50000,
+            n_train_valid=50000,
             n_test=10000,
+            validation_split=validation_split,
             channels_first=channels_first,
             normalise_images=normalise_images,
         )
         self.datadir = datadir
         # Load training images
-        self.train_images = np.empty([50000, 3, 32, 32])
-        self.train_labels = np.empty([50000])
+        self.train_valid_images = np.empty([50000, 3, 32, 32], dtype=np.float32)
+        self.train_valid_labels = np.empty([50000], dtype=np.uint8)
         for idx in range(5):
             batch_images, batch_labels = self._unpickle(
                 os.path.join(self.datadir, f"data_batch_{(idx+1):d}")
             )
-            self.train_images[10000 * idx : 10000 * (idx + 1), :, :, :] = batch_images
-            self.train_labels[10000 * idx : 10000 * (idx + 1)] = batch_labels
+            self.train_valid_images[
+                10000 * idx : 10000 * (idx + 1), :, :, :
+            ] = batch_images
+            self.train_valid_labels[10000 * idx : 10000 * (idx + 1)] = batch_labels
         # Load test images
         self.test_images, self.test_labels = self._unpickle(
             os.path.join(self.datadir, "test_batch")
