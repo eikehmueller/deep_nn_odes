@@ -1,4 +1,22 @@
-"""Classes for reading labelled image data"""
+"""Classes for reading labelled image datasets
+
+Can be used to load the MNIST and CIFAR10 datasets from disk. 
+
+The classes are derived from a common base class, which provides the following three key methods for
+training neural networks for image classification:
+
+* get_shuffled_batched_train_data() returns the batched images and labels as a list of minibatches;
+    each image-minibatch is of the shape (batch_size,n_x,n_y,C) and each label-minibatch is of the
+    shape (batch_size,). The data can be randomly shuffled, so that the network sees that data in
+    a different order in each epoch.
+* get_validation_data() returns the batched images and labels used for validation; the image batches
+    are of shape (n_valid, n_x,n_y,C) and the labels of shape (n_valid,)
+* get_test_data() returns the batched images and labels used for testing; the image batches
+    are of shape (n_test, n_x,n_y,C) and the labels of shape (n_test,)
+
+By default, the image width and height are rescaled to n_x = n_y = 32. These are the dimensions
+of the CIFAR10 data, but note that the MNIST dataset consists of images of size 28 x 28.
+"""
 
 import os
 import pickle
@@ -7,7 +25,11 @@ import cv2
 
 
 class ImageDatasetLoader:
-    """Data loader base class"""
+    """Data loader base class.
+
+    All dataset-specific classes are derived from this base class, which provides the
+    fundamental functions for accessing the batched training, validation and test-data:
+    """
 
     def __init__(
         self,
@@ -53,8 +75,8 @@ class ImageDatasetLoader:
 
     def normalise_and_transpose(self):
         """Normalise images using the mean and standard deviation of the
-        training dataset and transpose them to HWC, if necessary (recall that by default images
-        are stored as CHW)."""
+        training dataset (including both training- and validation images) and transpose them to
+        HWC, if necessary (recall that by default images are stored as CHW)."""
         if self.normalise_images:
             # subtract mean and divide by standard deviation of
             # training images
@@ -100,10 +122,17 @@ class ImageDatasetLoader:
     def get_validation_data(self):
         """Return validation data
 
-        This includes all images that are not used for training. Returns two lists,
+        This includes all images that are not used for training. Returns two arrays,
         containing the batched images and the batched labels."""
         n_train = int((1 - self.validation_split) * self.n_train_valid)
         return self.train_valid_images[n_train:], self.train_valid_labels[n_train:]
+
+    def get_test_data(self):
+        """Return test data
+
+        This includes all images that are not used for training. Returns two arrays,
+        containing the batched images and the batched labels."""
+        return self.test_images, self.test_labels
 
 
 class MNISTDatasetLoader(ImageDatasetLoader):
@@ -111,8 +140,15 @@ class MNISTDatasetLoader(ImageDatasetLoader):
 
     See https://deepai.org/dataset/mnist and http://yann.lecun.com/exdb/mnist/.
     The files can be obtained with wget https://data.deepai.org/mnist.zip.
-    Downloaded the files into the data directory and unzip them with
+    Download the files into the data directory and unzip them with
     gunzip FILENAME.gz.
+
+    After unpacking the data directory should contain the following files:
+
+        * train-images-idx3-ubyte
+        * train-labels-idx1-ubyte
+        * t10k-images-idx3-ubyte
+        * t10k-labels-idx1-ubyte
     """
 
     def __init__(
@@ -233,6 +269,16 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
 
     The dataset is described at https://www.cs.toronto.edu/~kriz/cifar.html.
     Download the CIFAR-10 python version and unpack it into the correct directory.
+
+    After unpacking the data directory should contain the following files:
+
+        * batches.meta
+        * data_batch_1
+        * data_batch_2
+        * data_batch_3
+        * data_batch_4
+        * data_batch_5
+        * test_batch
     """
 
     def __init__(
