@@ -35,11 +35,12 @@ The model consists of the following layers:
 
 """
 
+from functools import partial
 import jax
 from jax import numpy as jnp
 from jax import random
 from jax import lax
-from flax.linen import avg_pool
+from flax.linen import max_pool
 
 
 def init_cnn_parameters(input_channels=3, n_categories=10):
@@ -100,10 +101,40 @@ def init_cnn_parameters(input_channels=3, n_categories=10):
     return params
 
 
-def cnn_model(params, x):
+def dropout(input, state):
+    """Apply dropout to input and return result
+
+    :arg input: neurons to which the dropout is to be applied
+    :arg state: model state
+    """
+
+    state["rngkey"], subkey = random.split(state["rngkey"])
+    p_dropout = state["p_dropout"]
+
+    def apply_dropout(x):
+        """Multiply each element of input by
+
+            1/p_keep*Bernoulli(p_keep)
+
+        with p_keep = 1-p_dropout being the probability of *not* dropping the node
+        """
+        p_keep = 1.0 - p_dropout
+        mask = random.bernoulli(subkey, p=p_keep, shape=x.shape)
+        return jax.lax.select(mask, x / p_keep, jnp.zeros_like(x))
+
+    return jax.lax.cond(
+        p_dropout == 0,
+        lambda x: x,
+        apply_dropout,
+        input,
+    )
+
+
+def cnn_model(params, state, x):
     """Evaluate the simple CNN model
 
     :arg params: Model parameters (initialised with init_cnn_parameters())
+    :arg state: Model state variable. Required to implement dropout.
     :arg x: input image of shape (n_images,32,32,C)
     """
     batch_size = x.shape[0]
@@ -121,10 +152,12 @@ def cnn_model(params, x):
                 + params["cnn_biases"][2 * super_layer + sub_layer]
             )
             x = jax.nn.relu(x)
-        x = avg_pool(x, (2, 2), strides=(2, 2))
+        x = max_pool(x, (2, 2), strides=(2, 2))
 
     # Dense layers
     x = jnp.reshape(x, (batch_size, -1))
+    # Dropout layer (commented out for now)
+    # x = dropout(x, state)
     # RELU layer
     x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
     # Compute logits
