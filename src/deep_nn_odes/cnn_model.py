@@ -157,8 +157,9 @@ def cnn_model(params, state, x):
     # Dense layers
     x = jnp.reshape(x, (batch_size, -1))
     # Dropout layer (commented out for now)
-    # x = dropout(x, state)
+    x = dropout(x, state)
     # RELU layer
     x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
+    x = dropout(x, state)
     # Compute logits
     return x @ params["classification_weights"] + params["classification_biases"]
