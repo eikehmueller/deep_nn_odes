@@ -88,7 +88,9 @@ class ImageDatasetLoader:
         self.train_valid_images = self.train_valid_images.transpose([0, 2, 3, 1])
         self.test_images = self.test_images.transpose([0, 2, 3, 1])
 
-    def get_shuffled_batched_train_data(self, batch_size, random_shuffle=True):
+    def get_shuffled_batched_train_data(
+        self, batch_size, random_shuffle=True, augment=True
+    ):
         """Return batched data for training.
 
         Returns two lists, containing the batched images and the batched labels.
@@ -98,6 +100,7 @@ class ImageDatasetLoader:
 
         :arg batch_size: size of minibatches
         :arg random_shuffle: randomly shuffle the training dataset before batching?
+        :arg augment: augment images by flipping and random cropping?
         """
         n_train = int((1 - self.validation_split) * self.n_train_valid)
         idx_array = np.arange(0, n_train)
@@ -105,9 +108,31 @@ class ImageDatasetLoader:
             self.rng.shuffle(idx_array)
         n_batches = n_train // batch_size
         assert n_batches > 0
-        batched_images = np.split(
-            self.train_valid_images[idx_array[: n_batches * batch_size]], n_batches
-        )
+
+        train_images = self.train_valid_images[idx_array[: n_batches * batch_size]]
+        if augment:
+            # flip images
+            idx = np.nonzero(
+                self.rng.integers(low=0, high=2, size=n_batches * batch_size)
+            )
+            train_images[idx] = np.flip(train_images[idx], axis=-2)
+            # pad and crop images
+            padding = 4
+            padded_images = np.pad(
+                train_images, ((0, 0), (padding, padding), (padding, padding), (0, 0))
+            )
+            offset = self.rng.integers(
+                low=0, high=2 * padding + 1, size=(n_batches * batch_size, 2)
+            )
+            for j in range(n_batches * batch_size):
+                train_images[j, : self.n_x, : self.n_y, :] = padded_images[
+                    j,
+                    offset[j, 0] : offset[j, 0] + self.n_x,
+                    offset[j, 1] : offset[j, 1] + self.n_y,
+                    :,
+                ]
+
+        batched_images = np.split(train_images, n_batches)
         batched_labels = np.split(
             self.train_valid_labels[idx_array[: n_batches * batch_size]],
             n_batches,
