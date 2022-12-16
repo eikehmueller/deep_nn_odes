@@ -40,7 +40,6 @@ class ImageDatasetLoader:
         n_train_valid=None,
         n_test=None,
         validation_split=0.2,
-        channels_first=False,
         normalise_images=True,
     ):
         """Initialise new instance
@@ -52,8 +51,6 @@ class ImageDatasetLoader:
         :arg n_train_valid: number of training + validation images
         :arg n_test: number of test images
         :arg validation_split: fraction of training images used for validation
-        :arg channels_first: if this is true, then individual images will be stored as
-               CHW, otherwise as HWC.
         :arg normalise_images: normalise images by subtracting mean and dividing
             by standard deviation of training images?
         """
@@ -64,7 +61,6 @@ class ImageDatasetLoader:
         self.n_test = n_test
         self.n_categories = n_categories
         self.validation_split = validation_split
-        self.channels_first = channels_first
         self.normalise_images = normalise_images
         # random number generator
         self.rng = np.random.default_rng(seed=2149187)
@@ -88,10 +84,9 @@ class ImageDatasetLoader:
             )
             self.train_valid_images = (self.train_valid_images - avg) / std
             self.test_images = (self.test_images - avg) / std
-        if not self.channels_first:
-            # transpose to HWC, if necessary
-            self.train_valid_images = self.train_valid_images.transpose([0, 2, 3, 1])
-            self.test_images = self.test_images.transpose([0, 2, 3, 1])
+        # transpose to HWC format
+        self.train_valid_images = self.train_valid_images.transpose([0, 2, 3, 1])
+        self.test_images = self.test_images.transpose([0, 2, 3, 1])
 
     def get_shuffled_batched_train_data(self, batch_size, random_shuffle=True):
         """Return batched data for training.
@@ -155,7 +150,6 @@ class MNISTDatasetLoader(ImageDatasetLoader):
         self,
         datadir="../data/mnist/",
         validation_split=0.2,
-        channels_first=False,
         resize=True,
         normalise_images=True,
     ):
@@ -163,7 +157,6 @@ class MNISTDatasetLoader(ImageDatasetLoader):
 
         :arg datadir: directory containing the datset files
         :arg validation_split: fraction of training images used for validation
-        :arg channels_first: store the images is CHW format?
         :arg resize: resize images to 32x32?
         :arg normalise_images: normalise images by subtracting mean and dividing
             by standard deviation of training images?
@@ -176,7 +169,6 @@ class MNISTDatasetLoader(ImageDatasetLoader):
             n_train_valid=60000,
             n_test=10000,
             validation_split=validation_split,
-            channels_first=channels_first,
             normalise_images=normalise_images,
         )
         self.resize = resize
@@ -285,14 +277,12 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
         self,
         datadir="../data/cifar-10-batches-py/",
         validation_split=0.2,
-        channels_first=False,
         normalise_images=True,
     ):
         """Initialise new instance
 
         :arg datadir: directory containing the datset files
         :arg validation_split: fraction of training images used for validation
-        :arg channels_first: store the images is CHW format?
         :arg normalise_images: normalise images by subtracting mean and dividing
             by standard deviation of training images?
         """
@@ -304,7 +294,6 @@ class CIFAR10DatasetLoader(ImageDatasetLoader):
             n_train_valid=50000,
             n_test=10000,
             validation_split=validation_split,
-            channels_first=channels_first,
             normalise_images=normalise_images,
         )
         self.datadir = datadir
