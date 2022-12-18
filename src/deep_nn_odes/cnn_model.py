@@ -81,21 +81,33 @@ def init_cnn_parameters(input_channels=3, n_categories=10):
         scale = jnp.sqrt(2 / C_in)
         key, subkey = random.split(key)
         params["cnn_weights"].append(
-            scale * random.normal(subkey, (3, 3, C_in, C_out), dtype=jnp.float32)
+            random.uniform(subkey,
+            (3, 3, C_in, C_out),
+            minval=-scale,
+            maxval=scale,
+            dtype=jnp.float32)
         )
         params["cnn_biases"].append(jnp.ones((C_out,), dtype=jnp.float32))
     # weights and biases of intermediate dense layer
     scale = jnp.sqrt(2 / 1024)
     key, subkey = random.split(key)
-    params["dense_weights"] = scale * random.normal(
-        subkey, (1024, 64), dtype=jnp.float32
+    params["dense_weights"] = random.uniform(
+        subkey,
+        (1024, 64),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32
     )
     params["dense_biases"] = jnp.ones((64,), dtype=jnp.float32)
     # weights and biases of dense classification layer
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / 64)
-    params["classification_weights"] = scale * random.normal(
-        subkey, (64, n_categories), dtype=jnp.float32
+    params["classification_weights"] = random.uniform(
+        subkey,
+        (64, n_categories),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32
     )
     params["classification_biases"] = jnp.ones((n_categories,), dtype=jnp.float32)
     return params
