@@ -253,62 +253,34 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     key, subkey = random.split(key)
     params["initial_conv_weights"] = random.uniform(
         subkey,
-        (5, 5, input_channels, 8),
+        (5, 5, input_channels, 16),
         minval=-scale,
         maxval=scale,
         dtype=jnp.float32,
     )
-    params["initial_conv_biases"] = jnp.ones((8,), dtype=jnp.float32)
-    # Residual blocks on 16x16 image with 8 channels
-    params["residualblocks_16x16x8"] = []
+    params["initial_conv_biases"] = jnp.ones((16,), dtype=jnp.float32)
+    # Residual blocks on 16x16 image with 16 channels
+    params["residualblocks_16x16x16"] = []
     for _ in range(3):
         key, subkey = random.split(key)
-        params["residualblocks_16x16x8"].append(
-            init_residualblock_parameters(subkey, input_channels=8, n_conv=2)
+        params["residualblocks_16x16x16"].append(
+            init_residualblock_parameters(subkey, input_channels=16, n_conv=2)
         )
     # Downsampling residual block:
-    #     16x16 image with 8 channels -> 8x8 image with 16 channels
+    #     16x16 image with 16 channels -> 8x8 image with 32 channels
     key, subkey = random.split(key)
-    params[
-        "downsampling_residualblock_16x16x8"
-    ] = init_downsampling_residualblock_parameters(key, input_channels=8, n_conv=2)
-    # Residual blocks on 8x8 image with 16 channels
-    params["residualblocks_8x8x16"] = []
+    params["downsampling_residualblock"] = init_downsampling_residualblock_parameters(
+        key, input_channels=16, n_conv=2
+    )
+    # Residual blocks on 8x8 image with 32 channels
+    params["residualblocks_8x8x32"] = []
     for _ in range(3):
         key, subkey = random.split(key)
-        params["residualblocks_8x8x16"].append(
-            init_residualblock_parameters(key, input_channels=16, n_conv=2)
-        )
-    # Downsampling residual block:
-    #     8x8 image with 16 channels -> 4x4 image with 32 channels
-    key, subkey = random.split(key)
-    params[
-        "downsampling_residualblock_8x8x16"
-    ] = init_downsampling_residualblock_parameters(key, input_channels=16, n_conv=2)
-    # Residual blocks on 4x4 image with 32 channels
-    params["residualblocks_4x4x32"] = []
-    for _ in range(3):
-        key, subkey = random.split(key)
-        params["residualblocks_4x4x32"].append(
+        params["residualblocks_8x8x32"].append(
             init_residualblock_parameters(key, input_channels=32, n_conv=2)
         )
-    # Dense block (32 nodes -> 64 nodes)
-    C_in, C_out = (32, 64)
-    key, subkey = random.split(key)
-    scale = jnp.sqrt(2 / C_in)
-    params["dense_weights"] = random.uniform(
-        subkey,
-        (C_in, C_out),
-        minval=-scale,
-        maxval=scale,
-        dtype=jnp.float32,
-    )
-    params["dense_biases"] = jnp.ones(
-        (C_out,),
-        dtype=jnp.float32,
-    )
-    # Classification block (64 nodes -> n_categories nodes)
-    C_in, C_out = (64, n_categories)
+    # Classification block (32 nodes -> n_categories nodes)
+    C_in, C_out = (32, n_categories)
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / C_in)
     params["classification_weights"] = random.uniform(
@@ -395,31 +367,19 @@ def resnet_model(params, state, x):
     # Initial downsampling
     x = max_pool(x, (2, 2), strides=(2, 2))
 
-    # Residual blocks on 16x16 image with 8 channels
-    for residual_block_params in params["residualblocks_16x16x8"]:
+    # Residual blocks on 16x16 image with 16 channels
+    for residual_block_params in params["residualblocks_16x16x16"]:
         x = residual_block(residual_block_params, x)
     # Downsampling residual block:
-    #     16x16 image with 8 channels -> 8x8 image with 16 channels
-    x = downsampling_residual_block(
-        params["downsampling_residualblock_16x16x8"], state, x
-    )
-    # Residual blocks on 8x8 image with 16 channels
-    for residual_block_params in params["residualblocks_8x8x16"]:
-        x = residual_block(residual_block_params, x)
-    # Downsampling residual block:
-    #     8x8 image with 16 channels -> 4x4 image with 32 channels
-    x = downsampling_residual_block(
-        params["downsampling_residualblock_8x8x16"], state, x
-    )
-    # Residual blocks on 4x4 image with 32 channels
-    for residual_block_params in params["residualblocks_4x4x32"]:
+    #     16x16 image with 16 channels -> 8x8 image with 32 channels
+    x = downsampling_residual_block(params["downsampling_residualblock"], state, x)
+    # Residual blocks on 8x8 image with 32 channels
+    for residual_block_params in params["residualblocks_8x8x32"]:
         x = residual_block(residual_block_params, x)
     # Global average pooling
     x = avg_pool(x, x.shape[1:3])
     # Flatten
     x = jnp.reshape(x, (batch_size, -1))
-    # RELU layer
-    x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
     x = dropout(x, state, 0.5)
-    # Compute logits
+    # Classification layer: compute logits
     return x @ params["classification_weights"] + params["classification_biases"]
