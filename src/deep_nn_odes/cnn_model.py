@@ -250,7 +250,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     params["initial_conv_biases"] = jnp.ones((16,), dtype=jnp.float32)
     # Residual blocks on 16x16 image with 16 channels
     params["residualblocks_16x16x16"] = []
-    for _ in range(3):
+    for _ in range(5):
         key, subkey = random.split(key)
         params["residualblocks_16x16x16"].append(
             init_residualblock_parameters(subkey, input_channels=16, n_conv=2)
@@ -263,7 +263,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     )
     # Residual blocks on 8x8 image with 32 channels
     params["residualblocks_8x8x32"] = []
-    for _ in range(3):
+    for _ in range(5):
         key, subkey = random.split(key)
         params["residualblocks_8x8x32"].append(
             init_residualblock_parameters(key, input_channels=32, n_conv=2)
