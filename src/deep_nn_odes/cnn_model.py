@@ -221,19 +221,44 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
             )
         )
         params["residual_block_2_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
-    # Projection
+    # Residual block 3
+    for C_in, C_out in zip((16, 32, 32, 32), (32, 32, 32, 32)):
+        key, subkey = random.split(key)
+        scale = jnp.sqrt(2 / C_in)
+        params["residual_block_3_weights"].append(
+            random.uniform(
+                subkey,
+                (3, 3, C_in, C_out),
+                minval=-scale,
+                maxval=scale,
+                dtype=jnp.float32,
+            )
+        )
+        params["residual_block_3_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
+    # Projection 1
     C_in, C_out = (8, 16)
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / C_in)
-    params["projection_weights"] = random.uniform(
+    params["projection_1_weights"] = random.uniform(
         subkey,
         (1, 1, C_in, C_out),
         minval=-scale,
         maxval=scale,
         dtype=jnp.float32,
     )
-    # Dense block (16 -> 64)
-    C_in, C_out = (16, 64)
+    # Projection 2
+    C_in, C_out = (16, 32)
+    key, subkey = random.split(key)
+    scale = jnp.sqrt(2 / C_in)
+    params["projection_2_weights"] = random.uniform(
+        subkey,
+        (1, 1, C_in, C_out),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32,
+    )
+    # Dense block (32 -> 64)
+    C_in, C_out = (32, 64)
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / C_in)
     params["dense_weights"] = random.uniform(
@@ -325,7 +350,34 @@ def resnet_model(params, state, x):
     # Projection layer
     x += lax.conv_general_dilated(
         x_in,
-        params["projection_weights"],
+        params["projection_1_weights"],
+        (2, 2),
+        "SAME",
+        dimension_numbers=("NHWC", "HWIO", "NHWC"),
+    )
+    # ==== Third residual block ====
+    x_in = x  # save state before block
+    x = max_pool(x, (2, 2), strides=(2, 2))
+    x = dropout(x, state, 0.2)
+    for weights, biases in zip(
+        params["residual_block_3_weights"], params["residual_block_3_biases"]
+    ):
+        x = (
+            lax.conv_general_dilated(
+                x,
+                weights,
+                (1, 1),
+                "SAME",
+                dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            )
+            + biases
+        )
+        # >>> ADD batch-normalisation layer <<<
+        x = jax.nn.relu(x)
+    # Projection layer
+    x += lax.conv_general_dilated(
+        x_in,
+        params["projection_2_weights"],
         (2, 2),
         "SAME",
         dimension_numbers=("NHWC", "HWIO", "NHWC"),
