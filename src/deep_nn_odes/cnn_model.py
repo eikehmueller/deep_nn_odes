@@ -194,7 +194,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     )
     params["initial_conv_biases"] = jnp.ones((8,), dtype=jnp.float32)
     # Residual block 1
-    for C_in, C_out in zip((8, 8, 8), (8, 8, 8)):
+    for C_in, C_out in zip((8, 8, 8, 8), (8, 8, 8, 8)):
         key, subkey = random.split(key)
         scale = jnp.sqrt(2 / C_in)
         params["residual_block_1_weights"].append(
@@ -208,7 +208,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
         )
         params["residual_block_1_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
     # Residual block 2
-    for C_in, C_out in zip((8, 16, 16), (16, 16, 16)):
+    for C_in, C_out in zip((8, 16, 16, 16), (16, 16, 16, 16)):
         key, subkey = random.split(key)
         scale = jnp.sqrt(2 / C_in)
         params["residual_block_2_weights"].append(
@@ -336,6 +336,6 @@ def resnet_model(params, state, x):
     x = jnp.reshape(x, (batch_size, -1))
     # RELU layer
     x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
-    x = dropout(x, state, 0.2)
+    x = dropout(x, state, 0.5)
     # Compute logits
     return x @ params["classification_weights"] + params["classification_biases"]
