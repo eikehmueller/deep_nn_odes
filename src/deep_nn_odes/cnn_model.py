@@ -171,6 +171,72 @@ def cnn_model(params, state, x):
     return x @ params["classification_weights"] + params["classification_biases"]
 
 
+def init_residualblock_parameters(key, input_channels, n_conv=2):
+    """Initialise parameters for the convolutions in a single
+    residual block
+
+    :arg key: key for random number generator
+    :arg input_channels: number of input channels
+    :arg n_conv: number of convolutions
+    """
+    # The number of channels does not change
+    C_ins = n_conv * [input_channels]
+    C_outs = n_conv * [input_channels]
+    params = dict(weights=[], biases=[])
+    for C_in, C_out in zip(C_ins, C_outs):
+        key, subkey = random.split(key)
+        scale = jnp.sqrt(2 / C_in)
+        params["weights"].append(
+            random.uniform(
+                subkey,
+                (3, 3, C_in, C_out),
+                minval=-scale,
+                maxval=+scale,
+                dtype=jnp.float32,
+            )
+        )
+        params["biases"].append(jnp.ones((C_out,), dtype=jnp.float32))
+    return params
+
+
+def init_downsampling_residualblock_parameters(key, input_channels, n_conv=2):
+    """Initialise parameters for the convolutions and projection in a single
+    residual block with downsampling
+
+    :arg key: key for random number generator
+    :arg input_channels: number of input channels
+    :arg n_conv: number of convolutions
+    """
+    # The subsequent layers have twice the number of channels as the first layer
+    C_ins = [input_channels] + (n_conv - 1) * [2 * input_channels]
+    C_outs = n_conv * [2 * input_channels]
+    params = dict(weights=[], biases=[])
+    # Convolutions
+    for C_in, C_out in zip(C_ins, C_outs):
+        scale = jnp.sqrt(2 / C_in)
+        key, subkey = random.split(key)
+        params["weights"].append(
+            random.uniform(
+                subkey,
+                (3, 3, C_in, C_out),
+                minval=-scale,
+                maxval=+scale,
+                dtype=jnp.float32,
+            )
+        )
+        params["biases"].append(jnp.ones((C_out,), dtype=jnp.float32))
+    # Projection
+    scale = jnp.sqrt(2 / input_channels)
+    params["projection_weights"] = random.uniform(
+        subkey,
+        (1, 1, input_channels, 2 * input_channels),
+        minval=-scale,
+        maxval=+scale,
+        dtype=jnp.float32,
+    )
+    return params
+
+
 def init_resnet_parameters(input_channels=3, n_categories=10):
     """Initialise parameters of ResNet model
 
@@ -182,7 +248,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     seed = 47
     key = random.PRNGKey(seed)
     params = defaultdict(list)
-    # Initial convolution
+    # Initial 5x5 convolution with 8 output channels
     scale = jnp.sqrt(2 / input_channels)
     key, subkey = random.split(key)
     params["initial_conv_weights"] = random.uniform(
@@ -193,71 +259,35 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
         dtype=jnp.float32,
     )
     params["initial_conv_biases"] = jnp.ones((8,), dtype=jnp.float32)
-    # Residual block 1
-    for C_in, C_out in zip((8, 8, 8, 8), (8, 8, 8, 8)):
-        key, subkey = random.split(key)
-        scale = jnp.sqrt(2 / C_in)
-        params["residual_block_1_weights"].append(
-            random.uniform(
-                subkey,
-                (3, 3, C_in, C_out),
-                minval=-scale,
-                maxval=scale,
-                dtype=jnp.float32,
-            )
+    # Residual blocks on 16x16 image with 8 channels
+    params["residualblocks_16x16x8"] = []
+    for _ in range(3):
+        params["residualblocks_16x16x8"].append(
+            init_residualblock_parameters(key, input_channels=8, n_conv=2)
         )
-        params["residual_block_1_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
-    # Residual block 2
-    for C_in, C_out in zip((8, 16, 16, 16), (16, 16, 16, 16)):
-        key, subkey = random.split(key)
-        scale = jnp.sqrt(2 / C_in)
-        params["residual_block_2_weights"].append(
-            random.uniform(
-                subkey,
-                (3, 3, C_in, C_out),
-                minval=-scale,
-                maxval=scale,
-                dtype=jnp.float32,
-            )
+    # Downsampling residual block:
+    #     16x16 image with 8 channels -> 8x8 image with 16 channels
+    params[
+        "downsampling_residualblock_16x16x8"
+    ] = init_downsampling_residualblock_parameters(key, input_channels=8, n_conv=2)
+    # Residual blocks on 8x8 image with 16 channels
+    params["residualblocks_8x8x16"] = []
+    for _ in range(3):
+        params["residualblocks_8x8x16"].append(
+            init_residualblock_parameters(key, input_channels=16, n_conv=2)
         )
-        params["residual_block_2_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
-    # Residual block 3
-    for C_in, C_out in zip((16, 32, 32, 32), (32, 32, 32, 32)):
-        key, subkey = random.split(key)
-        scale = jnp.sqrt(2 / C_in)
-        params["residual_block_3_weights"].append(
-            random.uniform(
-                subkey,
-                (3, 3, C_in, C_out),
-                minval=-scale,
-                maxval=scale,
-                dtype=jnp.float32,
-            )
+    # Downsampling residual block:
+    #     8x8 image with 16 channels -> 4x4 image with 32 channels
+    params[
+        "downsampling_residualblock_8x8x16"
+    ] = init_downsampling_residualblock_parameters(key, input_channels=16, n_conv=2)
+    # Residual blocks on 4x4 image with 32 channels
+    params["residualblocks_4x4x32"] = []
+    for _ in range(3):
+        params["residualblocks_4x4x32"].append(
+            init_residualblock_parameters(key, input_channels=32, n_conv=2)
         )
-        params["residual_block_3_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
-    # Projection 1
-    C_in, C_out = (8, 16)
-    key, subkey = random.split(key)
-    scale = jnp.sqrt(2 / C_in)
-    params["projection_1_weights"] = random.uniform(
-        subkey,
-        (1, 1, C_in, C_out),
-        minval=-scale,
-        maxval=scale,
-        dtype=jnp.float32,
-    )
-    # Projection 2
-    C_in, C_out = (16, 32)
-    key, subkey = random.split(key)
-    scale = jnp.sqrt(2 / C_in)
-    params["projection_2_weights"] = random.uniform(
-        subkey,
-        (1, 1, C_in, C_out),
-        minval=-scale,
-        maxval=scale,
-        dtype=jnp.float32,
-    )
-    # Dense block (32 -> 64)
+    # Dense block (32 nodes -> 64 nodes)
     C_in, C_out = (32, 64)
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / C_in)
@@ -272,7 +302,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
         (C_out,),
         dtype=jnp.float32,
     )
-    # Classification block
+    # Classification block (64 nodes -> n_categories nodes)
     C_in, C_out = (64, n_categories)
     key, subkey = random.split(key)
     scale = jnp.sqrt(2 / C_in)
@@ -288,6 +318,54 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
         dtype=jnp.float32,
     )
     return params
+
+
+def residual_block(params, x):
+    """Apply a single residual block"""
+    z = x  # copy state before block
+    for weights, biases in zip(params["weights"], params["biases"]):
+        z = (
+            lax.conv_general_dilated(
+                z,
+                weights,
+                (1, 1),
+                "SAME",
+                dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            )
+            + biases
+        )
+        z = jax.nn.relu(z)
+    return x + z
+
+
+def downsampling_residual_block(params, state, x):
+    """Apply a single downsampling residual block"""
+    z = x  # copy state before block
+    # Maxpool layer
+    z = max_pool(z, (2, 2), strides=(2, 2))
+    z = dropout(z, state, 0.2)
+    # Residual layers
+    for weights, biases in zip(params["weights"], params["biases"]):
+        z = (
+            lax.conv_general_dilated(
+                z,
+                weights,
+                (1, 1),
+                "SAME",
+                dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            )
+            + biases
+        )
+        z = jax.nn.relu(z)
+    # Add projection of input state
+    z += lax.conv_general_dilated(
+        x,
+        params["projection_weights"],
+        (2, 2),
+        "SAME",
+        dimension_numbers=("NHWC", "HWIO", "NHWC"),
+    )
+    return z
 
 
 def resnet_model(params, state, x):
@@ -309,79 +387,28 @@ def resnet_model(params, state, x):
         )
         + params["initial_conv_biases"]
     )
+    # Initial downsampling
     x = max_pool(x, (2, 2), strides=(2, 2))
-    # ==== First residual block ====
-    x_in = x  # save state before block
-    for weights, biases in zip(
-        params["residual_block_1_weights"], params["residual_block_1_biases"]
-    ):
-        x = (
-            lax.conv_general_dilated(
-                x,
-                weights,
-                (1, 1),
-                "SAME",
-                dimension_numbers=("NHWC", "HWIO", "NHWC"),
-            )
-            + biases
-        )
-        # >>> ADD batch-normalisation layer <<<
-        x = jax.nn.relu(x)
-    x += x_in
-    # ==== Second residual block ====
-    x_in = x  # save state before block
-    x = max_pool(x, (2, 2), strides=(2, 2))
-    x = dropout(x, state, 0.2)
-    for weights, biases in zip(
-        params["residual_block_2_weights"], params["residual_block_2_biases"]
-    ):
-        x = (
-            lax.conv_general_dilated(
-                x,
-                weights,
-                (1, 1),
-                "SAME",
-                dimension_numbers=("NHWC", "HWIO", "NHWC"),
-            )
-            + biases
-        )
-        # >>> ADD batch-normalisation layer <<<
-        x = jax.nn.relu(x)
-    # Projection layer
-    x += lax.conv_general_dilated(
-        x_in,
-        params["projection_1_weights"],
-        (2, 2),
-        "SAME",
-        dimension_numbers=("NHWC", "HWIO", "NHWC"),
+
+    # Residual blocks on 16x16 image with 8 channels
+    for residual_block_params in params["residualblocks_16x16x8"]:
+        x = residual_block(residual_block_params, x)
+    # Downsampling residual block:
+    #     16x16 image with 8 channels -> 8x8 image with 16 channels
+    x = downsampling_residual_block(
+        params["downsampling_residualblock_16x16x8"], state, x
     )
-    # ==== Third residual block ====
-    x_in = x  # save state before block
-    x = max_pool(x, (2, 2), strides=(2, 2))
-    x = dropout(x, state, 0.2)
-    for weights, biases in zip(
-        params["residual_block_3_weights"], params["residual_block_3_biases"]
-    ):
-        x = (
-            lax.conv_general_dilated(
-                x,
-                weights,
-                (1, 1),
-                "SAME",
-                dimension_numbers=("NHWC", "HWIO", "NHWC"),
-            )
-            + biases
-        )
-        # >>> ADD batch-normalisation layer <<<
-        x = jax.nn.relu(x)
-    # Projection layer
-    x += lax.conv_general_dilated(
-        x_in,
-        params["projection_2_weights"],
-        (2, 2),
-        "SAME",
-        dimension_numbers=("NHWC", "HWIO", "NHWC"),
+    # Residual blocks on 8x8 image with 16 channels
+    for residual_block_params in params["residualblocks_8x8x16"]:
+        x = residual_block(residual_block_params, x)
+    # Downsampling residual block:
+    #     8x8 image with 16 channels -> 4x4 image with 32 channels
+    x = downsampling_residual_block(
+        params["downsampling_residualblock_8x8x16"], state, x
     )
+    # Residual blocks on 4x4 image with 32 channels
+    for residual_block_params in params["residualblocks_4x4x32"]:
+        x = residual_block(residual_block_params, x)
     # Global average pooling
     x = avg_pool(x, x.shape[1:3])
     # Flatten
