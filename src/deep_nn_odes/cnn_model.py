@@ -262,28 +262,33 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     # Residual blocks on 16x16 image with 8 channels
     params["residualblocks_16x16x8"] = []
     for _ in range(3):
+        key, subkey = random.split(key)
         params["residualblocks_16x16x8"].append(
-            init_residualblock_parameters(key, input_channels=8, n_conv=2)
+            init_residualblock_parameters(subkey, input_channels=8, n_conv=2)
         )
     # Downsampling residual block:
     #     16x16 image with 8 channels -> 8x8 image with 16 channels
+    key, subkey = random.split(key)
     params[
         "downsampling_residualblock_16x16x8"
     ] = init_downsampling_residualblock_parameters(key, input_channels=8, n_conv=2)
     # Residual blocks on 8x8 image with 16 channels
     params["residualblocks_8x8x16"] = []
     for _ in range(3):
+        key, subkey = random.split(key)
         params["residualblocks_8x8x16"].append(
             init_residualblock_parameters(key, input_channels=16, n_conv=2)
         )
     # Downsampling residual block:
     #     8x8 image with 16 channels -> 4x4 image with 32 channels
+    key, subkey = random.split(key)
     params[
         "downsampling_residualblock_8x8x16"
     ] = init_downsampling_residualblock_parameters(key, input_channels=16, n_conv=2)
     # Residual blocks on 4x4 image with 32 channels
     params["residualblocks_4x4x32"] = []
     for _ in range(3):
+        key, subkey = random.split(key)
         params["residualblocks_4x4x32"].append(
             init_residualblock_parameters(key, input_channels=32, n_conv=2)
         )
