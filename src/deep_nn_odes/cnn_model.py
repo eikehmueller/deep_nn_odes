@@ -1,6 +1,6 @@
 """CNN for image classification
 
-Implements a simple CNN model for image classification.
+Implements two simple CNN models for image classification.
 
 The input is an array of the shape (n_images,32,32,C), where each image has width h_x 
 and height n_y and has C channels.
@@ -8,7 +8,7 @@ and height n_y and has C channels.
 The model output are the logits of the class probabilities, i.e. an array of shape
 (n_images,M) where M is the number of classes.
 
-The model consists of the following layers:
+The first VGG-like model consists of the following layers:
 
     CNN Superlayer 0
       Convolution 0, kernelsize = (3,3) output channels = 16
@@ -33,6 +33,8 @@ The model consists of the following layers:
       Dense RELU layer from 1024 to 64
       Dense layer from 64 to M to compute logits
 
+The second model is a ResNet model
+
 """
 
 from functools import partial
@@ -49,19 +51,6 @@ def init_cnn_parameters(input_channels=3, n_categories=10):
     :arg key: key for random number generation
     :arg input_channels: number C of input channels
     :arg n_categories: number M of output categories
-
-      The parameters have the following shapes for the weight matrices and biases:
-      Convolution 0: (3,3,C,16)    and (16,)   # 144*C + 16
-      Convolution 1: (3,3,16,16)   and (16,)   # 2320
-      Convolution 2: (3,3,16,32)   and (32,)   # 4640
-      Convolution 3: (3,3,32,32)   and (32,)   # 9248
-      Convolution 4: (3,3,32,64)   and (64,)   # 18496
-      Convolution 5: (3,3,64,64)   and (64,)   # 36928
-      Output of MaxPool2D has shape 4x4x64 = 1024 for 32x32 input images
-      Dense Relu: (1024,64)        and (64,)   # 65600
-      Classification: (64,M)       and (M,)    # 65*M
-      ------------------------------------------------------------
-                    TOTAL (for C = 3, M = 10)  : 175258 parameters
     """
 
     from collections import defaultdict
@@ -128,9 +117,9 @@ def dropout(input, state, p_dropout):
         return jax.lax.select(mask, x / p_keep, jnp.zeros_like(x))
 
     return jax.lax.cond(
-        p_dropout == 0,
-        lambda x: x,
+        state["train"],
         apply_dropout,
+        lambda x: x,
         input,
     )
 
