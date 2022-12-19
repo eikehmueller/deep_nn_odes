@@ -40,7 +40,7 @@ import jax
 from jax import numpy as jnp
 from jax import random
 from jax import lax
-from flax.linen import max_pool
+from flax.linen import max_pool, avg_pool
 
 
 def init_cnn_parameters(input_channels=3, n_categories=10):
@@ -107,7 +107,7 @@ def init_cnn_parameters(input_channels=3, n_categories=10):
     return params
 
 
-def dropout(input, state):
+def dropout(input, state, p_dropout):
     """Apply dropout to input and return result
 
     :arg input: neurons to which the dropout is to be applied
@@ -115,7 +115,6 @@ def dropout(input, state):
     """
 
     state["rngkey"], subkey = random.split(state["rngkey"])
-    p_dropout = state["p_dropout"]
 
     def apply_dropout(x):
         """Multiply each element of input by
@@ -163,9 +162,180 @@ def cnn_model(params, state, x):
     # Dense layers
     x = jnp.reshape(x, (batch_size, -1))
     # Dropout layer (commented out for now)
-    x = dropout(x, state)
+    p_dropout = state["p_dropout"]
+    x = dropout(x, state, p_dropout)
     # RELU layer
     x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
-    x = dropout(x, state)
+    x = dropout(x, state, p_dropout)
+    # Compute logits
+    return x @ params["classification_weights"] + params["classification_biases"]
+
+
+def init_resnet_parameters(input_channels=3, n_categories=10):
+    """Initialise parameters of ResNet model
+
+    :arg input_channels: number of input channels
+    :arg n_categories: number of categories
+    """
+    from collections import defaultdict
+
+    seed = 47
+    key = random.PRNGKey(seed)
+    params = defaultdict(list)
+    # Initial convolution
+    scale = jnp.sqrt(2 / input_channels)
+    key, subkey = random.split(key)
+    params["initial_conv_weights"] = random.uniform(
+        subkey,
+        (5, 5, input_channels, 8),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32,
+    )
+    params["initial_conv_biases"] = jnp.ones((8,), dtype=jnp.float32)
+    # Residual block 1
+    for C_in, C_out in zip((8, 8, 8), (8, 8, 8)):
+        key, subkey = random.split(key)
+        scale = jnp.sqrt(2 / C_in)
+        params["residual_block_1_weights"].append(
+            random.uniform(
+                subkey,
+                (3, 3, C_in, C_out),
+                minval=-scale,
+                maxval=scale,
+                dtype=jnp.float32,
+            )
+        )
+        params["residual_block_1_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
+    # Residual block 2
+    for C_in, C_out in zip((8, 16, 16), (16, 16, 16)):
+        key, subkey = random.split(key)
+        scale = jnp.sqrt(2 / C_in)
+        params["residual_block_2_weights"].append(
+            random.uniform(
+                subkey,
+                (3, 3, C_in, C_out),
+                minval=-scale,
+                maxval=scale,
+                dtype=jnp.float32,
+            )
+        )
+        params["residual_block_2_biases"] = jnp.ones((C_out,), dtype=jnp.float32)
+    # Projection
+    C_in, C_out = (8, 16)
+    key, subkey = random.split(key)
+    scale = jnp.sqrt(2 / C_in)
+    params["projection_weights"] = random.uniform(
+        subkey,
+        (1, 1, C_in, C_out),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32,
+    )
+    # Dense block (16 -> 64)
+    C_in, C_out = (16, 64)
+    key, subkey = random.split(key)
+    scale = jnp.sqrt(2 / C_in)
+    params["dense_weights"] = random.uniform(
+        subkey,
+        (C_in, C_out),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32,
+    )
+    params["dense_biases"] = jnp.ones(
+        (C_out,),
+        dtype=jnp.float32,
+    )
+    # Classification block
+    C_in, C_out = (64, n_categories)
+    key, subkey = random.split(key)
+    scale = jnp.sqrt(2 / C_in)
+    params["classification_weights"] = random.uniform(
+        subkey,
+        (C_in, C_out),
+        minval=-scale,
+        maxval=scale,
+        dtype=jnp.float32,
+    )
+    params["classification_biases"] = jnp.ones(
+        (C_out,),
+        dtype=jnp.float32,
+    )
+    return params
+
+
+def resnet_model(params, state, x):
+    """Simple ResNet model
+
+    :arg params: model parameters
+    :arg state: model state
+    :arg x: input image
+    """
+    batch_size = x.shape[0]
+    # Initial convolution with 5x5 kernel and 8 features
+    x = (
+        lax.conv_general_dilated(
+            x,
+            params["initial_conv_weights"],
+            (1, 1),
+            "SAME",
+            dimension_numbers=("NHWC", "HWIO", "NHWC"),
+        )
+        + params["initial_conv_biases"]
+    )
+    x = max_pool(x, (2, 2), strides=(2, 2))
+    # ==== First residual block ====
+    x_in = x  # save state before block
+    for weights, biases in zip(
+        params["residual_block_1_weights"], params["residual_block_1_biases"]
+    ):
+        x = (
+            lax.conv_general_dilated(
+                x,
+                weights,
+                (1, 1),
+                "SAME",
+                dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            )
+            + biases
+        )
+        # >>> ADD batch-normalisation layer <<<
+        x = jax.nn.relu(x)
+    x += x_in
+    # ==== Second residual block ====
+    x_in = x  # save state before block
+    x = max_pool(x, (2, 2), strides=(2, 2))
+    x = dropout(x, state, 0.2)
+    for weights, biases in zip(
+        params["residual_block_2_weights"], params["residual_block_2_biases"]
+    ):
+        x = (
+            lax.conv_general_dilated(
+                x,
+                weights,
+                (1, 1),
+                "SAME",
+                dimension_numbers=("NHWC", "HWIO", "NHWC"),
+            )
+            + biases
+        )
+        # >>> ADD batch-normalisation layer <<<
+        x = jax.nn.relu(x)
+    # Projection layer
+    x += lax.conv_general_dilated(
+        x_in,
+        params["projection_weights"],
+        (2, 2),
+        "SAME",
+        dimension_numbers=("NHWC", "HWIO", "NHWC"),
+    )
+    # Global average pooling
+    x = avg_pool(x, x.shape[1:3])
+    # Flatten
+    x = jnp.reshape(x, (batch_size, -1))
+    # RELU layer
+    x = jax.nn.relu(x @ params["dense_weights"] + params["dense_biases"])
+    x = dropout(x, state, 0.2)
     # Compute logits
     return x @ params["classification_weights"] + params["classification_biases"]
