@@ -1,12 +1,13 @@
 """CNN for image classification
 
-Implements simplified ResNet model for image classification.
+Implements simplified ResNet model for classification on small image datasets
+duch as MNIST or CIFAR10.
 
 The input is an array of the shape (n_images,32,32,C), where each image has width h_x 
 and height n_y and has C channels.
 
 The model output are the logits of the class probabilities, i.e. an array of shape
-(n_images,M) where M is the number of classes.
+(n_images,M) where M is the number of catgories.
 """
 
 from functools import partial
@@ -18,12 +19,19 @@ from flax.linen import max_pool, avg_pool
 
 
 def dropout(input, state, p_dropout):
-    """Apply dropout to input and return result
+    """Apply dropout to input and return result.
+
+    The behaviour is controlled by the 'train' flag in the state dictionary:
+    during training, a fraction of p_dropout nodes is set to zero and the
+    output is scaled by (1-p_dropout)^{-1}. Otherwise (i.e. during inference),
+    the input is returned unchanged.
 
     :arg input: neurons to which the dropout is to be applied
     :arg state: model state
+    :arg p_dropout: dropout probability
     """
 
+    # extract key for random number generation
     state["rngkey"], subkey = random.split(state["rngkey"])
 
     def apply_dropout(x):
@@ -37,6 +45,7 @@ def dropout(input, state, p_dropout):
         mask = random.bernoulli(subkey, p=p_keep, shape=x.shape)
         return jax.lax.select(mask, x / p_keep, jnp.zeros_like(x))
 
+    # using lax.cond avoids if-statements which can not be jit-ed
     return jax.lax.cond(
         state["train"],
         apply_dropout,
