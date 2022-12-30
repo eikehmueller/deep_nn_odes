@@ -3,6 +3,7 @@
 JAX/Optax based implementation of ODE-based neural networks for trying out the ideas in [Haber and Ruthotto (2017)](https://arxiv.org/abs/1705.03341) and [Ruthotto and Haber (2020)](https://arxiv.org/abs/1804.04272).
 
 ## Resnet architecture
+The following network is a simplified verion of the architecture described in [He et al. (2015)](https://arxiv.org/abs/1512.03385), adapted for smaller images of size $32\times 32$ considered here.
 ![Model architecture](resnet.svg)
 
 ## Code structure

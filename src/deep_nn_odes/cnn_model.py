@@ -1,10 +1,10 @@
-"""CNN for image classification
+"""ResNet based CNN model for image classification
 
 Implements simplified ResNet model for classification on small image datasets
 duch as MNIST or CIFAR10.
 
 The input is an array of the shape (n_images,32,32,C), where each image has width h_x 
-and height n_y and has C channels.
+and height n_y and C channels (=colours).
 
 The model output are the logits of the class probabilities, i.e. an array of shape
 (n_images,M) where M is the number of catgories.
@@ -21,8 +21,8 @@ from flax.linen import max_pool, avg_pool
 def dropout(input, state, p_dropout):
     """Apply dropout to input and return result.
 
-    The behaviour is controlled by the 'train' flag in the state dictionary:
-    during training, a fraction of p_dropout nodes is set to zero and the
+    The behaviour of this layer is controlled by the 'train' flag in the state
+    dictionary: during training, a fraction of p_dropout nodes is set to zero and the
     output is scaled by (1-p_dropout)^{-1}. Otherwise (i.e. during inference),
     the input is returned unchanged.
 
@@ -35,11 +35,15 @@ def dropout(input, state, p_dropout):
     state["rngkey"], subkey = random.split(state["rngkey"])
 
     def apply_dropout(x):
-        """Multiply each element of input by
+        """Implementation of the actual dropout function.
+
+        Multiply each element of the input array by
 
             1/p_keep*Bernoulli(p_keep)
 
         with p_keep = 1-p_dropout being the probability of *not* dropping the node
+
+        :arg x: input array
         """
         p_keep = 1.0 - p_dropout
         mask = random.bernoulli(subkey, p=p_keep, shape=x.shape)
@@ -48,15 +52,15 @@ def dropout(input, state, p_dropout):
     # using lax.cond avoids if-statements which can not be jit-ed
     return jax.lax.cond(
         state["train"],
-        apply_dropout,
-        lambda x: x,
+        apply_dropout,  # apply dropout during training...
+        lambda x: x,  # ...otherwise just return the unmodified input
         input,
     )
 
 
 def init_residualblock_parameters(key, input_channels, n_conv=2):
     """Initialise parameters for the convolutions in a single
-    residual block
+    residual block.
 
     :arg key: key for random number generator
     :arg input_channels: number of input channels
@@ -83,7 +87,7 @@ def init_residualblock_parameters(key, input_channels, n_conv=2):
 
 
 def init_downsampling_residualblock_parameters(key, input_channels, n_conv=2):
-    """Initialise parameters for the convolutions and projection in a single
+    """Initialise parameters for the convolutions and the projection in a single
     residual block with downsampling
 
     :arg key: key for random number generator
@@ -121,7 +125,7 @@ def init_downsampling_residualblock_parameters(key, input_channels, n_conv=2):
 
 
 def init_resnet_parameters(input_channels=3, n_categories=10):
-    """Initialise parameters of ResNet model
+    """Initialise parameters of the entire ResNet model
 
     :arg input_channels: number of input channels
     :arg n_categories: number of categories
@@ -142,7 +146,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
         dtype=jnp.float32,
     )
     params["initial_conv_biases"] = jnp.ones((16,), dtype=jnp.float32)
-    # Residual blocks on 16x16 image with 16 channels
+    # 5 residual blocks on 16x16 image with 16 channels
     params["residualblocks_16x16x16"] = []
     for _ in range(5):
         key, subkey = random.split(key)
@@ -155,7 +159,7 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
     params["downsampling_residualblock"] = init_downsampling_residualblock_parameters(
         key, input_channels=16, n_conv=2
     )
-    # Residual blocks on 8x8 image with 32 channels
+    # 5 residual blocks on 8x8 image with 32 channels
     params["residualblocks_8x8x32"] = []
     for _ in range(5):
         key, subkey = random.split(key)
@@ -181,7 +185,11 @@ def init_resnet_parameters(input_channels=3, n_categories=10):
 
 
 def residual_block(params, x):
-    """Apply a single residual block"""
+    """Apply a single residual block
+
+    :arg params: parameters of the residual block (= weights and biases of the convolutions)
+    :arg x: input
+    """
     z = x  # copy state before block
     for weights, biases in zip(params["weights"], params["biases"]):
         z = (
@@ -199,7 +207,13 @@ def residual_block(params, x):
 
 
 def downsampling_residual_block(params, state, x):
-    """Apply a single downsampling residual block"""
+    """Apply a single downsampling residual block, including dropout
+
+    :arg params: parameters of the residual block (= weights and biases of the convolutions
+        and the projection matrix
+    :arg state: model state, required for dropout
+    :arg x: input array
+    """
     z = x  # copy state before block
     # Maxpool layer
     z = max_pool(z, (2, 2), strides=(2, 2))
@@ -229,10 +243,10 @@ def downsampling_residual_block(params, state, x):
 
 
 def resnet_model(params, state, x):
-    """Simple ResNet model
+    """Apply simple ResNet model
 
     :arg params: model parameters
-    :arg state: model state
+    :arg state: model state (required for dropout implementation)
     :arg x: input image
     """
     batch_size = x.shape[0]

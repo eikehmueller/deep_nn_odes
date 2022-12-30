@@ -2,15 +2,15 @@
 
 Can be used to load the MNIST and CIFAR10 datasets from disk. 
 
-The classes are derived from a common base class, which provides the following three key methods for
-training neural networks for image classification:
+The classes are derived from a common base class, which provides the following three
+key methods for training neural networks for image classification:
 
-* get_shuffled_batched_train_data() returns the batched images and labels as a list of minibatches;
-    each image-minibatch is of the shape (batch_size,n_x,n_y,C) and each label-minibatch is of the
-    shape (batch_size,). The data can be randomly shuffled, so that the network sees that data in
-    a different order in each epoch.
-* get_validation_data() returns the batched images and labels used for validation; the image batches
-    are of shape (n_valid, n_x,n_y,C) and the labels of shape (n_valid,)
+* get_shuffled_batched_train_data() returns the batched images and labels as a list of 
+    minibatches; each image-minibatch is of the shape (batch_size,n_x,n_y,C) and each
+    label-minibatch is of the shape (batch_size,). The data can be randomly shuffled, so that 
+    the network sees that data in a different order in each epoch.
+* get_validation_data() returns the batched images and labels used for validation; the image
+    batches are of shape (n_valid, n_x,n_y,C) and the labels of shape (n_valid,)
 * get_test_data() returns the batched images and labels used for testing; the image batches
     are of shape (n_test, n_x,n_y,C) and the labels of shape (n_test,)
 
