@@ -7,7 +7,8 @@ The input is an array of the shape (n_images,32,32,C), where each image has widt
 and height n_y and C channels (=colours).
 
 The model output are the logits of the class probabilities, i.e. an array of shape
-(n_images,M) where M is the number of catgories.
+(n_images,) where each entry in an integer number 0,1,...,M-1 and M is the number of
+categories.
 """
 
 from functools import partial

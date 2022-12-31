@@ -27,14 +27,14 @@ The notebook [TrainCNN.ipynb](src/TrainCNN.ipynb) uses the following two Python 
 ### Image dataset loaders
 The file [image_dataset_loader.py](src/deep_nn_odes/image_dataset_loader.py) contains classes for loading images from the MNIST and CIFAR10 datasets. The datasets are split into training, validation and test data. When creating new instances, the paths to the MNIST and CIFAR10 datasets have to be provided. Both classes are derived from the base class `ImageDatasetLoader` which provides the following functionality:
 
-* `get_shuffled_batched_train_data()` returns two lists with the batched training images and corresponding training labels. Each entry in the first list is a tensor of shape $B\times n_x\times n_y\times C$ where $B$ is the minibatch size, $n_x\times n_y$ is the image size and $C$ is the number of channels ($C=1$ for grayscale MNIST images and $C=3$ for the RGB CIFAR10 images). Each entry in the second list is a tensor of shape $B\times M$ where $M$ is the number of categories ($M=10$ for both MNIST and CIFAR10). The images in the training dataset are randomly shuffled in each epoch and the following data normalisation/augmentation is applied:
+* `get_shuffled_batched_train_data()` returns two lists with the batched training images and corresponding training labels. Each entry in the first list is a tensor of shape $B\times n_x\times n_y\times C$ where $B$ is the minibatch size, $n_x\times n_y$ is the image size and $C$ is the number of channels ($C=1$ for grayscale MNIST images and $C=3$ for the RGB CIFAR10 images). Each entry in the second list is a tensor of shape $B$, with each entry being an integer number in the set $\{0,1,\dots,M-1\}$ where $M$ is the number of categories ($M=10$ for both MNIST and CIFAR10). The images in the training dataset are randomly shuffled in each epoch and the following data normalisation/augmentation is applied:
     - For each channel, the mean value (over the training set) is subtracted and the result is divided by the standard deviation.
     - Images are randomly flipped in the horizontal direction
     - images are padded by 4 pixels in each direction and sub-images of size $n_x\times n_y$ are cut out of the padded $(n_x+4)\times (n_y+4)$ image
 
-* `get_validation_data()` returns two tensors of shape $n_{\text{valid}}\times n_x\times n_y \times C$ (images) and $n_{\text{valid}}\times M$ (labels) with the validation data, where $n_{\text{valid}}$ is the number of images used for validation.
+* `get_validation_data()` returns two tensors of shape $n_{\text{valid}}\times n_x\times n_y \times C$ (images) and $n_{\text{valid}}$ (labels) with the validation data, where $n_{\text{valid}}$ is the number of images used for validation.
 
-* `get_test_data()` returns two tensors of shape $n_{\text{test}}\times n_x\times n_y \times C$ (images) and $n_{\text{test}}\times M$ (labels) with the validation data, where $n_{\text{test}}$ is the number of images used for testing.
+* `get_test_data()` returns two tensors of shape $n_{\text{test}}\times n_x\times n_y \times C$ (images) and $n_{\text{test}}$ (labels) with the validation data, where $n_{\text{test}}$ is the number of images used for testing.
 
 It should not be necessary to understand the details of [image_dataset_loader.py](src/deep_nn_odes/image_dataset_loader.py), but it might be worth creating instances of `MNISTDatasetLoader` and `CIFAR10DatasetLoader` and play around with the above functions.
 
