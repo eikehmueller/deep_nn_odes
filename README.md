@@ -52,7 +52,7 @@ There is also the `dropout()` auxilliary function which provides a low-level imp
 * during evaluation (`train=False`) all nodes are kept, i.e. the dropout function just implements the identity.
 
 ## Usage
-The notebook in [TrainCNN.ipynb](src/TrainCNN.ipynb) can be run after a local installation (see below) or by opening it directly in google colab. Make sure it runs in a GPU instance, otherwise training is too slow. The first cell of the notebook will mount google drive, where it installs the dependencies and the `deep_nn_odes` package itself. This will then make it possible to import the modules [image_dataset_loader.py](src/deep_nn_odes/image_dataset_loader.py) [cnn_model.py](src/deep_nn_odes/cnn_model.py)) in [TrainCNN.ipynb](src/TrainCNN.ipynb). It will also download the MNIST and CIFAR10 data to the correct directory on google drive.
+The notebook in [TrainCNN.ipynb](src/TrainCNN.ipynb) can be run after a local installation (see below) or by opening it directly in google colab. Make sure it runs in a GPU instance, otherwise training is too slow. The first cell of the notebook will mount google drive, where it installs the dependencies and the `deep_nn_odes` package itself. This will then make it possible to import the modules [image_dataset_loader.py](src/deep_nn_odes/image_dataset_loader.py) and [cnn_model.py](src/deep_nn_odes/cnn_model.py) in [TrainCNN.ipynb](src/TrainCNN.ipynb). It will also download the MNIST and CIFAR10 data to the correct directory on google drive.
 
 ## Local installation
 To install locally, use
