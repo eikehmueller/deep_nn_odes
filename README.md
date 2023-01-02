@@ -16,10 +16,10 @@ $$
 A(n_B) = \frac{1}{n_{B}}\sum_{b=1}^{n_{B}} a_b
 $$
 
-where $n_{B} = \frac{\text{number of training samples}}{\text{batchsize}}$ is the number of training batches and $a_b$ is the accuracy of minibatch $b$. This sum is computed incrementally, using the fact that for any sum over $n$ terms we have that
+where $n_{B} = \frac{\text{number of training samples}}{\text{batchsize}}$ is the number of training batches and $a_b$ is the accuracy of minibatch $b$. This sum is computed incrementally, using the fact that for any sum $S(n)$ over $n$ terms we have that
 
 $$
-S(n) = \frac{1}{n}\sum_{j=1}^{n} a_j = \frac{1}{n}((n-1)S(n-1)+a_n) = S(n) + \frac{a_n-S(n-1)}{n}
+S(n) = \frac{1}{n}\sum_{j=1}^{n} a_j = \frac{1}{n}((n-1)S(n-1)+a_n) = S(n-1) + \frac{a_n-S(n-1)}{n}
 $$
 
 The notebook [TrainCNN.ipynb](src/TrainCNN.ipynb) uses the following two Python modules:
