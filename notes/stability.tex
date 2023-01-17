@@ -1,0 +1,181 @@
+\documentclass[11pt]{article}
+\usepackage{amssymb,amsmath}
+\usepackage[margin=2cm]{geometry}
+\title{Stability analysis of Hamiltonian and hyperbolic CNNs}
+\author{Eike Mueller, University of Bath}
+\date{\today}
+\begin{document}
+\maketitle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Definitions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Consider the following two dynamical systems
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Hamiltonian CNN}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{xalignat}{2}
+    \dot{x} &= +K \sigma(K^Tp + b), &
+    \dot{p} &= -K \sigma(K^Tx + b)\label{eqn:Hamiltonian_system}
+\end{xalignat}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Hyperbolic CNN}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{xalignat}{2}
+    \dot{x} &= p, &
+    \dot{p} &= -K \sigma(K^Tx + b)\label{eqn:hyperbolic_system}
+\end{xalignat}
+for $x(t)\in \mathbb{R}^d$ and $p(t)\in \mathbb{R}^d$ with the initial conditions
+\begin{xalignat}{2}
+    x(0) &= x_0, & p(0) &= p_0.
+\end{xalignat}
+Up to notation, Eq. \eqref{eqn:Hamiltonian_system} is the same as the Hamiltonian CNN introduced at the bottom of page 5 in \cite{Ruthotto2020}, whereas Eq. \eqref{eqn:hyperbolic_system} is equivalent to the hyperbolic system $\ddot{x} = -K \sigma(K^Tx + b)$ written down in Eq. (11) of \cite{Ruthotto2020} (with the initial condition $p_0=0$). We assume that the function $\sigma$ is Lipschitz-continuous with constant $L>0$,
+\begin{equation}
+    \left|\sigma(\xi_1) - \sigma(\xi_2)\right| \le L\left|\xi_1-\xi_2\right|\qquad
+    \text{for all $\xi_1,\xi_2\in\mathbb{R}$}.\label{eqn:Lipschitz}
+\end{equation}
+$K = K(t)\in \mathbb{R}^{d\times d}$ is a (possibly time dependent) $d\times d$ matrix and $b=b(t)\in\mathbb{R}^d$ a $d$-dimensional vector. We further assume that the eigenvalues of the positive definite matrix $K K^T$ are bounded from above by some constant $\Lambda$, which implies that
+\begin{equation}
+    z^T K K^T z \le \Lambda z^T z \qquad\text{for all $z\in\mathbb{R}^d$}.\label{eqn:eigenvalue_bound}
+\end{equation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Hamiltonian formulation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Note that Eqs. \eqref{eqn:Hamiltonian_system} and \eqref{eqn:hyperbolic_system} can both be written as
+\begin{xalignat}{2}
+    \dot{x} &= +\frac{\partial H}{\partial p}, &
+    \dot{p} &= -\frac{\partial H}{\partial x}
+\end{xalignat}
+with the Hamiltonian
+\begin{equation}
+    H(x,p) = T(p) + V(x).
+\end{equation}
+In both cases the potential energy is given by
+\begin{equation}
+    V(x) = \Phi(K^Tx+b)\qquad \text{with}\;\;
+    \Phi(z) := \sum_{j=1}^{d} \phi(z_j)\;\;\text{such that $\phi'(\xi) = \sigma(\xi)$ for all $\xi\in\mathbb{R}$.}
+\end{equation}
+For the Hamiltonian CNN in Eq. \eqref{eqn:Hamiltonian_system} the kinetic energy $T(p)$ is
+\begin{equation}
+    T(p) = \Phi(K^Tp+b)
+\end{equation}
+and for the hyperbolic CNN in Eq. \eqref{eqn:hyperbolic_system} it is given by
+\begin{equation}
+    T(p) = \frac{1}{2}p^T p.
+\end{equation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Stability analysis}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Let $x^\varepsilon(t), p^\varepsilon(t)$ be the solution of Eq. \eqref{eqn:Hamiltonian_system} with slightly perturbed initial conditions
+\begin{xalignat}{2}
+    x^\varepsilon(0) &= x_0+\varepsilon_x, & p(0) &= p_0+\varepsilon_p\qquad \text{with $\left|\varepsilon_x\right| = \left|\varepsilon_p\right|=\varepsilon \ll 1$.}
+\end{xalignat}
+Further, define the energy
+\begin{equation}
+    \Delta(t) := \frac{1}{2}\left((x^\varepsilon-x)^T(x^\varepsilon-x)+(p^\varepsilon-p)^T(p^\varepsilon-p)\right)
+\end{equation}
+with $\Delta(0) = \varepsilon^2$. Obviously, $\Delta(t)\le \delta$ implies that $||x^\varepsilon-x||_2\le \sqrt{2\delta}$ and $||p^\varepsilon-p||_2\le \sqrt{2\delta}$, so if we can bound $\Delta(t)$ this means that we can bound the difference between the true solution $(x(t),p(t))$ and the perturbed solution $(x^\varepsilon(t),p^\varepsilon(t))$.
+
+To achieve this, consider the rate of change of $\Delta(t)$ which can be written as
+\begin{equation}
+    \frac{\partial}{\partial t}\Delta(t)  =
+    (x^\varepsilon-x)^T(\dot{x}^\varepsilon-\dot{x}) + (p^\varepsilon-p)^T(\dot{p}^\varepsilon-\dot{p}).
+\end{equation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Hamiltonian CNN}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+For the Hamiltonian CNN in Eq. \eqref{eqn:Hamiltonian_system} the rate of change of $\Delta(t)$ is
+\begin{equation}
+    \frac{\partial}{\partial t}\Delta(t)       =  (x^\varepsilon-x)^TK\left(\sigma(K^Tp^\varepsilon+b)-\sigma(K^Tp+b)\right) - (p^\varepsilon-p)^TK\left(\sigma(K^Tx^\varepsilon+b)-\sigma(K^Tx+b)\right)
+\end{equation}
+Define further
+\begin{xalignat}{4}
+    \overline{x} &= K^T x + b, &
+    \overline{p} &= K^T p + b, &
+    \overline{x}^\varepsilon &= K^T x^\varepsilon + b, &
+    \overline{p}^\varepsilon &= K^T p^\varepsilon + b
+    \label{eqn:overline_defs}
+\end{xalignat}
+to obtain
+\begin{equation}
+    \begin{aligned}
+        \frac{\partial}{\partial t}\Delta(t) & =  (\overline{x}^\varepsilon-\overline{x})^T\left(\sigma(\overline{p}^\varepsilon)-\sigma(\overline{p})\right)
+        - (\overline{p}^\varepsilon-\overline{p})^T\left(\sigma(\overline{x}^\varepsilon)-\sigma(\overline{x})\right)                                                                                                           \\
+                                             & = \sum_{j=1}^d \left\{  (\overline{x}^\varepsilon_j-\overline{x}_j)\left(\sigma(\overline{p}^\varepsilon_j)-\sigma(\overline{p}_j)\right)
+        - (\overline{p}^\varepsilon_j-\overline{p}_j)\left(\sigma(\overline{x}^\varepsilon_j)-\sigma(\overline{x}_j)\right)\right\}                                                                                             \\
+                                             & \le \sum_{j=1}^d \left\{ \left|\overline{x}^\varepsilon_j-\overline{x}_j\right|\cdot \left|\sigma(\overline{p}^\varepsilon_j)-\sigma(\overline{p}_j)\right|
+        + \left|\overline{p}^\varepsilon_j-\overline{p}_j\right|\cdot \left|\sigma(\overline{x}^\varepsilon_j)-\sigma(\overline{x}_j)\right|\right\}      \qquad\text{(take absolute values)}                                   \\
+                                             & \le 2 L \sum_{j=1}^d \left|\overline{x}^\varepsilon_j-\overline{x}_j\right| \cdot
+        \left|\overline{p}^\varepsilon_j-\overline{p}_j\right| = 2 L
+        \left|(\overline{x}^\varepsilon-\overline{x})^T
+        (\overline{p}^\varepsilon-\overline{p})\right|                     \qquad\text{(Lipschitz continuity, Eq. \eqref{eqn:Lipschitz})}                                                                                       \\
+                                             & \le 2L \sqrt{(\overline{x}^\varepsilon-\overline{x})^T(\overline{x}^\varepsilon-\overline{x})}
+        \sqrt{(\overline{p}^\varepsilon-\overline{p})^T(\overline{p}^\varepsilon-\overline{p})}       \qquad\text{(Cauchy-Schwarz)}                                                                                             \\
+                                             & = 2L \sqrt{(x^\varepsilon-x)^TKK^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^TKK^T(p^\varepsilon-p)}                                                                                                                                                                         \\
+                                             & \le 2L\Lambda \sqrt{(x^\varepsilon-x)^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^T(p^\varepsilon-p)}                                                                                                           \qquad\text{(eigenvalue bound, Eq. \eqref{eqn:eigenvalue_bound})} \\
+                                             & \le 4L\Lambda \Delta(t)\qquad\text{(since $||x^\varepsilon-x||_2, ||p^\varepsilon-p||_2\le \sqrt{2\Delta(t)}$)}.
+    \end{aligned}
+\end{equation}
+This bound on the rate of change of $\Delta(t)> 0$ leads to
+\begin{equation}
+    \frac{\partial}{\partial t}\log \Delta(t) \le 4L\Lambda.\label{eqn:log_bound}
+\end{equation}
+Integrating Eq. \eqref{eqn:log_bound} up to time $T$ and using the initial condition $\Delta(0)=\varepsilon^2$ implies that we can bound $\Delta(T)$ as follows:
+\begin{equation}
+    \Delta(T) \le \varepsilon^2\cdot \widehat{C}_1(T) \qquad \text{with $\widehat{C}_1(t) := e^{4L\Lambda t}$}.
+\end{equation}
+Hence, for fixed time $T$ there exists a constant $C_1(T)=\sqrt{2}e^{2L\Lambda T}$ such that
+\begin{equation}
+    |x^\varepsilon(T)-x(T)|,|p^\varepsilon(T)-p(T)| \le \varepsilon \cdot C_1(T).
+\end{equation}
+The solution is stable in the sense that for fixed $T$ we have that $x^\varepsilon(T)\rightarrow x(T),p^\varepsilon(T)\rightarrow p(T)$ as $\varepsilon\rightarrow 0$.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Hyperbolic CNN}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+For the hyperbolic CNN in Eq. \eqref{eqn:hyperbolic_system} the rate of change of $\Delta(t)$ is
+\begin{equation}
+    \frac{\partial}{\partial t}\Delta(t)       =  (x^\varepsilon-x)^T(p^\varepsilon-p) - (p^\varepsilon-p)^TK\left(\sigma(K^Tx^\varepsilon+b)-\sigma(K^Tx+b)\right)
+\end{equation}
+Using the same techniques as above, this can be bounded as follows:
+\begin{equation}
+    \begin{aligned}
+        \frac{\partial}{\partial t}\Delta(t) & =
+        (x^\varepsilon-x)^T(p^\varepsilon-p)
+        - (\overline{p}^\varepsilon-\overline{p})^T\left(\sigma(\overline{x}^\varepsilon)-\sigma(\overline{x})\right)   \qquad\text{(definitions in Eqs. \eqref{eqn:overline_defs})}                                            \\
+                                             & = \sum_{j=1}^d \left\{  (x^\varepsilon_j-x_j)(p^\varepsilon_j-p_j)
+        - (\overline{p}^\varepsilon_j-\overline{p}_j)\left(\sigma(\overline{x}^\varepsilon_j)-\sigma(\overline{x}_j)\right)\right\}                                                                                             \\
+                                             & \le \sum_{j=1}^d \left\{ \left|x^\varepsilon_j-x_j\right|\cdot\left|p^\varepsilon_j-p_j\right|
+        + \left|\overline{p}^\varepsilon_j-\overline{p}_j\right|\cdot \left|\sigma(\overline{x}^\varepsilon_j)-\sigma(\overline{x}_j)\right|\right\}      \qquad\text{(take absolute values)}                                   \\
+                                             & \le \sum_{j=1}^d \left\{\left|x^\varepsilon_j-x_j\right|\cdot \left|p^\varepsilon_j-p_j\right| + L \left|\overline{x}^\varepsilon_j-\overline{x}_j\right| \cdot
+        \left|\overline{p}^\varepsilon_j-\overline{p}_j\right|\right\} \qquad\text{(Lipschitz continuity, Eq. \eqref{eqn:Lipschitz})}                                                                                           \\
+                                             & =
+        \left|(x^\varepsilon-x)^T
+        (p^\varepsilon-p)\right|                    + L
+        \left|(\overline{x}^\varepsilon-\overline{x})^T
+        (\overline{p}^\varepsilon-\overline{p})\right|                                                                                                                                                                          \\
+                                             & \le \sqrt{(x^\varepsilon-x)^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^T(p^\varepsilon-p)}                                                                                                                                                                             \\
+                                             & \quad +\;\; L \sqrt{(\overline{x}^\varepsilon-\overline{x})^T(\overline{x}^\varepsilon-\overline{x})}
+        \sqrt{(\overline{p}^\varepsilon-\overline{p})^T(\overline{p}^\varepsilon-\overline{p})}       \qquad\text{(Cauchy-Schwarz)}                                                                                             \\
+                                             & = \sqrt{(x^\varepsilon-x)^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^T(p^\varepsilon-p)}                                                                                                                                                                             \\
+                                             & \quad+\;\; L \sqrt{(x^\varepsilon-x)^TKK^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^TKK^T(p^\varepsilon-p)}                                                                                                                                                                         \\
+                                             & \le (1+L\Lambda) \sqrt{(x^\varepsilon-x)^T(x^\varepsilon-x)}
+        \sqrt{(p^\varepsilon-p)^T(p^\varepsilon-p)}                                                                                                           \qquad\text{(eigenvalue bound, Eq. \eqref{eqn:eigenvalue_bound})} \\
+                                             & \le 2(1+L\Lambda) \Delta(t)\qquad\text{(since $||x^\varepsilon-x||_2, ||p^\varepsilon-p||_2\le \sqrt{2\Delta(t)}$)}
+    \end{aligned}
+\end{equation}
+Using the same arguments as above, we find that
+\begin{equation}
+    \Delta(T) \le \varepsilon^2\cdot \widehat{C}_2(T) \qquad \text{with $\widehat{C}_2(t) := e^{2(1+L\Lambda) t}$}
+\end{equation}
+and for fixed time $T$ there exists a constant $C_2(T)=\sqrt{2}e^{(1+L\Lambda) T}$ such that
+\begin{equation}
+    |x^\varepsilon(T)-x(T)|,|p^\varepsilon(T)-p(T)| \le \varepsilon \cdot C_2(T).
+\end{equation}.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{unsrt}
+\bibliography{stability}
+\end{document}
