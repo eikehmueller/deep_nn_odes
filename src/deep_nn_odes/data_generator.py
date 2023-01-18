@@ -182,3 +182,58 @@ class DataGeneratorSwissRoll(DataGenerator):
         # Convert to one-hot encoding
         y_onehot = np.eye(self.n_class)[y_class]
         return X, y_onehot
+
+
+class DataGeneratorPeaks(DataGenerator):
+    """Generator for the peaks dataset
+
+    Data points in the domain [-3,+3] x [-3,+3] are classified using the peaks function
+
+        f_peak(x,y) = 3 (1-x)^2 exp[-(x^2 + (y+1)^2)]
+                    - 10 (1/5 x - x^3 - y^5) exp[-(x^2 + y^2)]
+                    - 1/3 exp[-((x + 1)^2 + Y^2)]
+
+    a point (x,y) is labelled to be of class k if the f_peak(x,y) lies in the range
+    L_k ... L_{k+1}, where L = [-infinity,L_1,L_2,...,L_k,L_infinity] is a given set of levels.
+
+    :arg n_train: total number of training samples to generate; must be a multiple of batchsize
+    :arg n_test: total number of test samples to generate
+    :arg batchsize: batch size
+    """
+
+    def __init__(self, n_train, n_test, batchsize):
+        self.levels = [-4, -1, 2, 5, 10]
+        super().__init__(2, len(self.levels) + 1, n_train, n_test, batchsize)
+
+    def f_peak(self, X):
+        """Peak function f_peak(x,y)
+
+        :arg X: (x,y)-coordinates of points
+        """
+        return (
+            3 * (1 - X[0]) ** 2 * np.exp(-(X[0] ** 2 + (X[1] + 1) ** 2))
+            - 10
+            * (0.2 * X[0] - X[0] ** 3 - X[1] ** 5)
+            * np.exp(-(X[0] ** 2 + X[1] ** 2))
+            - 1 / 3 * np.exp(-((X[0] + 1) ** 2 + X[1] ** 2))
+        )
+
+    def _generate_data(self, n_data):
+        """Generate data points
+
+        draw datapoints from peaks dataset
+
+        :arg n_data: number of data points to generate
+
+        Return tuple (X_data,y_data) where X_data is an array of shape (n_data,2) and
+        y_data is a one-hot array of shape (n_data,n_c) with n_c being the number of classes
+        """
+        X = self.rng.uniform(low=-3, high=+3, size=(n_data, 2))
+        values = self.f_peak(X.T)
+        y_class = np.empty(n_data, dtype=int)
+        all_levels = [-np.infty] + self.levels + [+np.infty]
+        for j, (low, high) in enumerate(zip(all_levels[:-1], all_levels[1:])):
+            y_class[np.where((low < values) & (values < high))] = j
+
+        y_onehot = np.eye(self.n_class)[y_class]
+        return X, y_onehot
