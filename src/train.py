@@ -15,16 +15,18 @@ from deep_nn_odes.model import (
     mlp_model,
     init_hamiltonian_parameters,
     hamiltonian_model,
+    hamiltonian_regulariser,
 )
 
 
-def fit(model, params, optimizer, data_generator, nepoch=10):
+def fit(model, params, optimizer, data_generator, regulariser=None, nepoch=10):
     """Fit the MLP classifier using cross-entropy loss
 
     :arg model: the model to fit
     :arg params: fit parameters
     :arg optimizer: optimizer
     :arg data_generator: data generator
+    :arg regulariser: regulariser function, which is passed params as sole parameter
     :arg nepoch: number of epochs
     """
     opt_state = optimizer.init(params)
@@ -33,7 +35,10 @@ def fit(model, params, optimizer, data_generator, nepoch=10):
     def loss(params, model, x, y):
         """Cross-entropy loss function"""
         logits = model(params, x)
-        return optax.softmax_cross_entropy(logits, y).mean()
+        loss_value = optax.softmax_cross_entropy(logits, y).mean()
+        if regulariser is not None:
+            loss_value += regulariser(params)
+        return loss_value
 
     @jax.jit
     def step(params, opt_state, X_batch, y_batch):
@@ -94,9 +99,9 @@ n_test = 1024
 # number of epochs
 nepoch = 1000
 # batch size
-batchsize = 128
+batchsize = 256
 # Hyperparameters
-learning_rate = 1.0e-3
+learning_rate = 1.0e-2
 
 # choose dataset
 dataset_label = "swissroll"
@@ -123,16 +128,21 @@ if model_label == "MLP":
     layer_widths = (2, 16, 16, 2)
     params = init_mlp_parameters(layer_widths)
     model = mlp_model
+    regulariser = None
 elif model_label == "Hamiltonian":
-    n_steps = 16
-    latent_dim = 8
-    params = init_hamiltonian_parameters(2, latent_dim, 2)
+    n_steps = 64
+    alpha = 1.0e-3
+    params = init_hamiltonian_parameters(2, 2, n_steps=n_steps)
     model = partial(hamiltonian_model, n_steps=n_steps)
+    regulariser = partial(hamiltonian_regulariser, alpha=alpha)
+    # regulariser = None
 else:
     raise Exception(f"unknown dataset: '{dataset_label}'")
 
 # Fit the model
-params = fit(model, params, optimizer, data_generator, nepoch=nepoch)
+params = fit(
+    model, params, optimizer, data_generator, regulariser=regulariser, nepoch=nepoch
+)
 
 # Visualise fitted model
 visualise(data_generator, model, params)
