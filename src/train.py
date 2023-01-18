@@ -99,9 +99,9 @@ n_test = 1024
 # number of epochs
 nepoch = 1000
 # batch size
-batchsize = 128
+batchsize = 256
 # Hyperparameters
-learning_rate = 1.0e-3
+learning_rate = 1.0e-2
 
 # choose dataset
 dataset_label = "swissroll"
@@ -130,7 +130,7 @@ if model_label == "MLP":
     model = mlp_model
     regulariser = None
 elif model_label == "Hamiltonian":
-    n_steps = 32
+    n_steps = 64
     alpha = 1.0e-3
     params = init_hamiltonian_parameters(2, 2, n_steps=n_steps)
     model = partial(hamiltonian_model, n_steps=n_steps)
